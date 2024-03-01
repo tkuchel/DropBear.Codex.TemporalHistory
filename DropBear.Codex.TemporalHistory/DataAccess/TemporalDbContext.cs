@@ -3,56 +3,35 @@ using DropBear.Codex.TemporalHistory.Extensions;
 using DropBear.Codex.TemporalHistory.Interfaces;
 using DropBear.Codex.TemporalHistory.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace DropBear.Codex.TemporalHistory.DataAccess;
 
-/// <summary>
-///     Represents the base DbContext with support for temporal table change tracking.
-/// </summary>
 public class TemporalDbContext : DbContext
 {
     private readonly AuditableConfig _auditableConfig;
+    private readonly ILogger<TemporalDbContext> _logger;
 
-    public TemporalDbContext(AuditableConfig auditableConfig) => _auditableConfig = auditableConfig;
+    public TemporalDbContext(AuditableConfig auditableConfig, ILogger<TemporalDbContext> logger)
+    {
+        _auditableConfig = auditableConfig;
+        _logger = logger;
+    }
 
-    /// <summary>
-    ///     Gets or sets the DbSet for ChangeLogs.
-    /// </summary>
     public DbSet<ChangeLog> ChangeLogs { get; set; }
 
-
-    /// <summary>
-    ///     Configures the model that was discovered by convention from the entity types
-    ///     exposed in DbSet properties on your derived context. The resulting model may be cached
-    ///     and re-used for subsequent instances of your derived context.
-    /// </summary>
-    /// <param name="modelBuilder">The builder being used to construct the model for this context.</param>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyTemporalTableConfiguration();
     }
 
-    /// <summary>
-    ///     Saves all changes made in this context to the database with change metadata capture.
-    /// </summary>
-    /// <param name="acceptAllChangesOnSuccess">Indicates whether changes should be accepted upon successful save.</param>
-    /// <returns>The number of state entries written to the database.</returns>
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         CaptureChangeMetadata();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
-    /// <summary>
-    ///     Asynchronously saves all changes made in this context to the database with change metadata capture.
-    /// </summary>
-    /// <param name="acceptAllChangesOnSuccess">Indicates whether changes should be accepted upon successful save.</param>
-    /// <param name="cancellationToken">A CancellationToken to observe while waiting for the task to complete.</param>
-    /// <returns>
-    ///     A task that represents the asynchronous save operation. The task result contains the number of state entries
-    ///     written to the database.
-    /// </returns>
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
         CancellationToken cancellationToken = default)
     {
@@ -60,11 +39,11 @@ public class TemporalDbContext : DbContext
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
-    /// <summary>
-    ///     Captures change metadata for entities being tracked by the DbContext.
-    /// </summary>
     private void CaptureChangeMetadata()
     {
+        var userId = GetCurrentUserId();
+        var reason = ""; // Implement logic to determine reason or pass as a parameter.
+
         foreach (var entry in ChangeTracker.Entries())
             if (entry.State == EntityState.Added || entry.State == EntityState.Modified ||
                 entry.State == EntityState.Deleted)
@@ -76,35 +55,22 @@ public class TemporalDbContext : DbContext
                     EntityKey =
                         entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey())?.CurrentValue.ToString(),
                     ChangeType = entry.State.ToString(),
-                    ChangeTime = DateTime.UtcNow // Default, adjust based on IAuditable if available
+                    ChangeTime = DateTime.UtcNow,
+                    UserId = userId,
+                    ChangeReason = reason, // This needs to be determined based on your application logic.
+                    PeriodStart = DateTime.UtcNow, // Adjust as necessary
+                    PeriodEnd = DateTime.MaxValue // Adjust as necessary
                 };
-
-                // Handle IAuditable fields
-                // Check if the entity is auditable and has custom config
-                if (typeof(IAuditable).IsAssignableFrom(entityType))
-                {
-                    var mapping = _auditableConfig.GetMapping(entityType);
-
-                    if (mapping != null)
-                    {
-                        // Use mapping to get field values
-                        var createdAt = entry.Property(mapping.CreatedAt).CurrentValue.ToString();
-                        var createdBy = entry.Property(mapping.CreatedBy).CurrentValue.ToString();
-                        // Handle ModifiedAt and ModifiedBy similarly
-                    }
-                }
-
-                // Handle ITemporal interface
-                if (entry.Entity is ITemporal temporalEntity)
-                {
-                    changeLog.PeriodStart = temporalEntity.ValidFrom;
-                    changeLog.PeriodEnd = temporalEntity.ValidTo;
-                }
 
                 ChangeLogs.Add(changeLog);
             }
     }
 
+    /// <summary>
+    ///     Updates audit information for auditable entities.
+    /// </summary>
+    /// <param name="entity">The entity being audited.</param>
+    /// <param name="state">The state of the entity.</param>
     private void UpdateAuditInformation(object entity, EntityState state)
     {
         if (entity is IAuditable auditable)
@@ -126,14 +92,18 @@ public class TemporalDbContext : DbContext
         }
     }
 
+    /// <summary>
+    ///     Placeholder for a method to fetch the current user's ID.
+    ///     Implementation depends on your application's authentication mechanism.
+    /// </summary>
+    /// <returns>The current user's ID.</returns>
+    private string GetCurrentUserId() => throw new NotImplementedException();
 
-    // Placeholder for a method to fetch the current user's ID
-    private string GetCurrentUserId() => throw
-        // Implementation depends on your application's authentication mechanism
-        new NotImplementedException();
-
-    // Placeholder for a method to fetch the reason for a change
-    private string GetChangeReason(object entity) => throw
-        // Implementation can vary. You might use a specific interface or annotations to extract reasons from entities
-        new NotImplementedException();
+    /// <summary>
+    ///     Placeholder for a method to fetch the reason for a change.
+    ///     Implementation can vary. You might use a specific interface or annotations to extract reasons from entities.
+    /// </summary>
+    /// <param name="entity">The entity being modified.</param>
+    /// <returns>The reason for the change.</returns>
+    private string GetChangeReason(object entity) => throw new NotImplementedException();
 }
