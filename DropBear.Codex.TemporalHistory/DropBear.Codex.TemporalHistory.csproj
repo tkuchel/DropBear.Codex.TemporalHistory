@@ -19,6 +19,10 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
+    <Target Name="BeforeBuild">
+        <Exec Command="powershell.exe -NonInteractive -ExecutionPolicy Unrestricted -File &quot;T:\PowershellScripts\RiderPrebuildScript.ps1&quot; &quot;$(MSBuildProjectFullPath)&quot; &quot;T:\DropBear.Codex.TemporalHistory\version.json&quot;"/>
+    </Target>
+
     <ItemGroup>
       <PackageReference Include="Meziantou.DotNet.CodingStandard" Version="1.0.119">
         <PrivateAssets>all</PrivateAssets>
