@@ -1,4 +1,4 @@
-# TemporalHistory Library
+# DropBear.Codex.TemporalHistory Library
 
 A comprehensive library for managing temporal data and audit logging in .NET applications using Entity Framework Core.
 
@@ -15,7 +15,9 @@ A comprehensive library for managing temporal data and audit logging in .NET app
 
 First, add the TemporalHistory library to your project using NuGet:
 
-shell dotnet add package DropBear.Codex.TemporalHistory 
+```csharp
+dotnet add package DropBear.Codex.TemporalHistory 
+```
 
 ### Configuration
 
