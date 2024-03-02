@@ -1,45 +1,73 @@
+using DropBear.Codex.TemporalHistory.Delegates;
 using DropBear.Codex.TemporalHistory.Interfaces;
-using DropBear.Codex.TemporalHistory.Models;
 using Microsoft.Extensions.Logging;
-using ZLogger; // Ensure ZLogger or ILogger is referenced properly
+using ZLogger;
 
 namespace DropBear.Codex.TemporalHistory.Configurations;
 
 /// <summary>
-/// Manages configuration for auditable entities, linking them to their specific audit field mappings.
+///     Provides configuration for auditable entities, including delegate configurations and field mappings.
 /// </summary>
-public class AuditableConfig
+public class AuditableConfig(ILogger<AuditableConfig> logger)
 {
-    private readonly ILogger<AuditableConfig> _logger;
+    private readonly ILogger<AuditableConfig> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    public AuditableConfig(ILogger<AuditableConfig> logger)
-    {
-        _logger = logger;
-    }
-
-    public Dictionary<Type, AuditableFieldMapping> Mappings { get; } = new Dictionary<Type, AuditableFieldMapping>();
+    public GetCurrentUserIdDelegate? GetCurrentUserIdFunc { get; set; }
+    public GetChangeReasonDelegate? GetChangeReasonFunc { get; set; }
 
     /// <summary>
-    /// Configures a mapping for an auditable entity type.
+    ///     Holds configurations for each auditable entity type, including field mappings.
     /// </summary>
-    /// <param name="mapping">The auditable field mapping to associate with the entity type.</param>
+    public Dictionary<Type, EntityAuditConfig> EntityConfigs { get; } = new();
+
+    /// <summary>
+    ///     Configures audit settings and field mappings for an auditable entity type.
+    /// </summary>
     /// <typeparam name="T">The entity type implementing IAuditable.</typeparam>
-    public void Configure<T>(AuditableFieldMapping mapping) where T : IAuditable
+    /// <param name="configure">A configuration action for the entity's audit settings.</param>
+    public void ConfigureEntity<T>(Action<EntityAuditConfig>? configure) where T : IAuditable
     {
-        ArgumentNullException.ThrowIfNull(mapping, nameof(mapping));
-        Mappings[typeof(T)] = mapping;
-        _logger.ZLogInformation($"Configuring audit for {typeof(T).Name}");
+        var config = new EntityAuditConfig();
+        configure?.Invoke(config);
+
+        EntityConfigs[typeof(T)] = config;
+        _logger.ZLogInformation($"Configured audit settings for {typeof(T).Name}.");
     }
 
     /// <summary>
-    /// Retrieves the audit field mapping for a specific entity type.
+    ///     Retrieves audit settings for a specific entity type, if available.
     /// </summary>
-    /// <param name="entityType">The entity type to retrieve the mapping for.</param>
-    /// <returns>The corresponding auditable field mapping, if available.</returns>
-    public AuditableFieldMapping GetMapping(Type entityType)
+    /// <typeparam name="T">The entity type.</typeparam>
+    /// <returns>The entity's audit configuration or null if not found.</returns>
+    public EntityAuditConfig? GetEntityConfig<T>() where T : IAuditable
     {
-        ArgumentNullException.ThrowIfNull(entityType, nameof(entityType));
-        Mappings.TryGetValue(entityType, out var mapping);
-        return mapping;
+        EntityConfigs.TryGetValue(typeof(T), out var config);
+        return config;
     }
 }
+
+
+// Example use.
+// services.AddSingleton<AuditableConfig>(provider =>
+// {
+//     var logger = provider.GetRequiredService<ILogger<AuditableConfig>>();
+//     var config = new AuditableConfig(logger);
+//
+//     config.GetCurrentUserIdFunc = () => "User ID logic";
+//     config.GetChangeReasonFunc = (entity) => "Change reason logic";
+//
+//     // Configure specific entity
+//     config.ConfigureEntity<MyAuditableEntity>(entityConfig =>
+//     {
+//         entityConfig.AuditingEnabled = true;
+//         entityConfig.FieldMapping = new AuditableFieldMapping
+//         {
+//             CreatedAt = "CreatedAtPropertyName",
+//             CreatedBy = "CreatedByPropertyName",
+//             ModifiedAt = "ModifiedAtPropertyName",
+//             ModifiedBy = "ModifiedByPropertyName"
+//         };
+//     });
+//
+//     return config;
+// });

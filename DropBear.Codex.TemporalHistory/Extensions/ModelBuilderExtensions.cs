@@ -1,52 +1,65 @@
-using System;
 using System.Reflection;
 using DropBear.Codex.TemporalHistory.Attributes;
 using DropBear.Codex.TemporalHistory.Interfaces;
+using DropBear.Codex.TemporalHistory.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace DropBear.Codex.TemporalHistory.Extensions;
 
 /// <summary>
-/// Provides extension methods for <see cref="ModelBuilder"/> to apply configurations related to temporal tables and auditing.
+///     Provides extension methods for ModelBuilder to configure entities for temporal tables and auditing capabilities.
 /// </summary>
 public static class ModelBuilderExtensions
 {
     /// <summary>
-    /// Applies configuration for entities marked with <see cref="TemporalAttribute"/> and implements <see cref="IAuditable"/>.
+    ///     Configures entities marked with TemporalAttribute and IAuditable for temporal table support and auditing.
     /// </summary>
-    /// <param name="modelBuilder">The model builder instance.</param>
-    public static void ApplyTemporalTableConfiguration(this ModelBuilder modelBuilder)
+    /// <param name="modelBuilder">The ModelBuilder instance.</param>
+    /// <param name="configureChangeLog">An optional action to further customize the ChangeLog entity configuration.</param>
+    public static void ApplyTemporalTableConfiguration(this ModelBuilder modelBuilder,
+        Action<EntityTypeBuilder<ChangeLog>>? configureChangeLog = null)
     {
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-        {
-            ApplyTemporalConfiguration(modelBuilder, entityType);
-            ApplyAuditConfiguration(modelBuilder, entityType);
-        }
-    }
-
-    private static void ApplyTemporalConfiguration(ModelBuilder modelBuilder, Microsoft.EntityFrameworkCore.Metadata.IMutableEntityType entityType)
-    {
-        var temporalAttribute = entityType.ClrType.GetCustomAttribute<TemporalAttribute>();
-        if (temporalAttribute != null)
-        {
-            modelBuilder.Entity(entityType.ClrType).ToTable(b => b.IsTemporal(temporalTableBuilder =>
+            try
             {
-                temporalTableBuilder.UseHistoryTable(temporalAttribute.HistoryTableName ?? $"{entityType.ClrType.Name}History");
-                temporalTableBuilder.HasPeriodStart(temporalAttribute.PeriodStartColumnName ?? "ValidFrom");
-                temporalTableBuilder.HasPeriodEnd(temporalAttribute.PeriodEndColumnName ?? "ValidTo");
-            }));
-        }
+                entityType.ClrType.ApplyTemporalConfiguration(modelBuilder);
+                entityType.ClrType.ApplyAuditConfiguration(modelBuilder);
+            }
+            catch (Exception ex)
+            {
+                // Consider implementing a logging mechanism or allowing this method to throw to the caller.
+                Console.WriteLine($"Error applying configurations to {entityType.Name} - {ex.Message}");
+            }
+
+        // Configure the ChangeLog entity with an optional custom configuration
+        var changeLogBuilder = modelBuilder.Entity<ChangeLog>();
+        changeLogBuilder.Property(e => e.ChangeType).HasConversion<string>();
+        configureChangeLog?.Invoke(changeLogBuilder);
     }
 
-    private static void ApplyAuditConfiguration(ModelBuilder modelBuilder, Microsoft.EntityFrameworkCore.Metadata.IMutableEntityType entityType)
+    private static void ApplyTemporalConfiguration(this Type clrType, ModelBuilder modelBuilder)
     {
-        if (typeof(IAuditable).IsAssignableFrom(entityType.ClrType))
-        {
-            var entityBuilder = modelBuilder.Entity(entityType.ClrType);
-            entityBuilder.Property<DateTime>("CreatedAt");
-            entityBuilder.Property<string>("CreatedBy").HasMaxLength(255);
-            entityBuilder.Property<DateTime>("ModifiedAt");
-            entityBuilder.Property<string>("ModifiedBy").HasMaxLength(255);
-        }
+        var temporalAttribute = clrType.GetCustomAttribute<TemporalAttribute>();
+        if (temporalAttribute is not null)
+            modelBuilder.Entity(clrType).ToTable(b => b.IsTemporal(t =>
+            {
+                t.UseHistoryTable(temporalAttribute.HistoryTableName ?? $"{clrType.Name}History");
+                t.HasPeriodStart(temporalAttribute.PeriodStartColumnName ?? "ValidFrom");
+                t.HasPeriodEnd(temporalAttribute.PeriodEndColumnName ?? "ValidTo");
+            }));
+    }
+
+    private static void ApplyAuditConfiguration(this Type clrType, ModelBuilder modelBuilder)
+    {
+        if (typeof(IAuditable).IsAssignableFrom(clrType)) modelBuilder.Entity(clrType).ConfigureAuditProperties();
+    }
+
+    private static void ConfigureAuditProperties(this EntityTypeBuilder entityBuilder)
+    {
+        entityBuilder.Property<DateTime>("CreatedAt").IsRequired();
+        entityBuilder.Property<string>("CreatedBy").IsRequired().HasMaxLength(255);
+        entityBuilder.Property<DateTime>("ModifiedAt").IsRequired();
+        entityBuilder.Property<string>("ModifiedBy").IsRequired().HasMaxLength(255);
     }
 }

@@ -1,37 +1,28 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using DropBear.Codex.TemporalHistory.Enums;
 
 namespace DropBear.Codex.TemporalHistory.Models;
 
 /// <summary>
-/// Represents a log of changes made to entities within the system, capturing the nature and timing of each change.
+///     Represents a record of changes made to entities, including the type, time, and reason for each change.
 /// </summary>
 public class ChangeLog
 {
-    [Key]
-    public int ChangeLogId { get; set; }
+    [Key] public int ChangeLogId { get; init; }
 
-    [Required]
-    [MaxLength(255)]
-    public string EntityName { get; set; }
+    [Required] [MaxLength(255)] public required string EntityName { get; init; }
 
-    [Required]
-    [MaxLength(255)]
-    public string EntityKey { get; set; }
+    [Required] [MaxLength(255)] public required string EntityKey { get; init; }
 
-    [Required]
-    [MaxLength(50)]
-    public string ChangeType { get; set; } // Consider enum for Add, Update, Delete
+    [Required] [MaxLength(50)] public required ChangeTypeEnum ChangeType { get; init; }
 
-    public DateTime ChangeTime { get; set; }
+    public DateTime ChangeTime { get; init; }
 
-    [MaxLength(255)]
-    public string UserId { get; set; }
+    [MaxLength(255)] public required string UserId { get; init; }
 
-    [MaxLength(1000)]
-    public string ChangeReason { get; set; }
+    [MaxLength(1000)] public required string ChangeReason { get; init; }
 
-    public DateTime PeriodStart { get; set; }
+    public DateTime PeriodStart { get; init; }
 
-    public DateTime PeriodEnd { get; set; }
+    public DateTime PeriodEnd { get; init; }
 }

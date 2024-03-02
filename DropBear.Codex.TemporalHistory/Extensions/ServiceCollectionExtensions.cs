@@ -1,26 +1,38 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-
+﻿using DropBear.Codex.TemporalHistory.Configurations;
+using DropBear.Codex.TemporalHistory.DataAccess;
+using DropBear.Codex.TemporalHistory.Interfaces;
+using DropBear.Codex.TemporalHistory.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace DropBear.Codex.TemporalHistory.Extensions;
 
-/// <summary>
-/// Extension methods for configuring services related to temporal history management.
-/// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds services required for temporal history management to the service collection.
+    ///     Adds services and configurations required for temporal history management to the service collection.
     /// </summary>
     /// <param name="services">The IServiceCollection to add services to.</param>
+    /// <param name="configureAuditableConfig">An action to configure the AuditableConfig instance.</param>
     /// <returns>The IServiceCollection for chaining.</returns>
-    public static IServiceCollection AddTemporalHistory(this IServiceCollection services)
+    public static IServiceCollection AddTemporalHistory(this IServiceCollection services,
+        Action<AuditableConfig>? configureAuditableConfig = null)
     {
-        // Register any specific services, repositories, or utilities needed for temporal history management.
-        // For example, if you have a service for handling temporal data operations:
-        // services.AddScoped<ITemporalDataService, TemporalDataService>();
+        // Assumes ILoggerFactory is configured by the consuming application.
+        services.AddSingleton(provider =>
+        {
+            var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger<AuditableConfig>();
 
-        // Register a generic audit service if using IAuditable entities
-        // services.AddScoped<IAuditService, AuditService>();
+            var auditableConfig = new AuditableConfig(logger);
+            configureAuditableConfig?.Invoke(auditableConfig);
+            return auditableConfig;
+        });
+
+        // Register the DbContext and other services as needed
+        services.AddDbContext<TemporalDbContext>(); // Ensure this is configured as per the application's needs
+        services.AddScoped<IHistoricalDataService, HistoricalDataService>();
+        services.AddScoped<IRollbackService, RollbackService>();
 
         return services;
     }
