@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using DropBear.Codex.TemporalHistory.Interfaces;
 using DropBear.Codex.TemporalHistory.Models;
 using DropBear.Codex.TemporalHistory.Services;
@@ -9,54 +8,51 @@ namespace DropBear.Codex.TemporalHistory.Extensions;
 
 public static class DbContextExtensions
 {
+    /// <summary>
+    ///     Logs changes of the auditable entities within the DbContext.
+    /// </summary>
+    /// <param name="context">The DbContext containing the entities.</param>
+    /// <param name="auditService">The service responsible for processing and storing audit entries.</param>
     public static void LogChanges(this DbContext context, AuditService auditService)
     {
         var auditEntries = context.GenerateAuditEntries();
         auditService.SaveAuditEntries(auditEntries);
     }
 
-    private static List<AuditEntry> GenerateAuditEntries(this DbContext context)
-    {
-        var entries = context.ChangeTracker.Entries()
-            .Where(e => e.State != EntityState.Unchanged && e.Entity is IAuditableEntry).ToList();
-        var auditEntries = new List<AuditEntry>();
+    private static List<AuditEntry> GenerateAuditEntries(this DbContext context) =>
+        context.ChangeTracker.Entries()
+            .Where(e => e.State != EntityState.Unchanged && e.Entity is IAuditableEntry)
+            .Select(entry =>
+            {
+                var auditableEntity = (IAuditableEntry)entry.Entity;
 
-        foreach (var entry in entries)
-        {
-            var auditableEntity = entry.Entity as IAuditableEntry;
-            if (auditableEntity == null) continue; // Skip if not implementing IAuditableEntry
+                // Directly evaluate the ID selector expression within the LINQ query
+                var entityIdExpression = auditableEntity.GetIdSelector();
+                var entityId = entityIdExpression.Compile().Invoke();
 
-            // Use the GetIdSelector method to dynamically access the EntityId
-            var entityIdExpression = auditableEntity.GetIdSelector();
-            var compiled = entityIdExpression.Compile();
-            var entityId = (Guid)compiled.DynamicInvoke();
+                var auditEntry = new AuditEntry(
+                    entry.Entity,
+                    entry.State,
+                    (Guid)entityId, // Casting to Guid as we assume the ID is of this type
+                    auditableEntity.LastModifiedBy,
+                    auditableEntity.LastModifiedAt);
 
-            var auditEntry = new AuditEntry(entry.Entity, entry.State, entityId, auditableEntity.LastModifiedBy,
-                auditableEntity.LastModifiedAt);
+                PopulateChanges(entry, auditEntry);
+                return auditEntry;
+            }).ToList();
 
-            // Assuming a method to populate changes exists
-            PopulateChanges(entry, auditEntry);
-
-            auditEntries.Add(auditEntry);
-        }
-
-        return auditEntries;
-    }
-
-// Example method to populate property changes
+    /// <summary>
+    ///     Populates the audit entry with changes detected in the entity.
+    /// </summary>
+    /// <param name="entry">The EntityEntry object containing information about the entity's changes.</param>
+    /// <param name="auditEntry">The AuditEntry object to populate with changes.</param>
     private static void PopulateChanges(EntityEntry entry, AuditEntry auditEntry)
     {
         foreach (var property in entry.Properties)
             if (property.IsModified)
-                auditEntry.AddChange(property.Metadata.Name, property.OriginalValue, property.CurrentValue);
-    }
-
-
-    private static Guid EvaluateIdSelector(Expression<Func<object>> idSelectorExpr)
-    {
-        // Compile and invoke the expression to get the ID value
-        var idValue = idSelectorExpr.Compile().Invoke();
-        // Ensure the ID value is a Guid and return it
-        return (Guid)idValue;
+                auditEntry.AddChange(
+                    property.Metadata.Name,
+                    property.OriginalValue,
+                    property.CurrentValue);
     }
 }

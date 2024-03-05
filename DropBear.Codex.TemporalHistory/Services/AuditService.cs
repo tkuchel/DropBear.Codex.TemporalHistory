@@ -3,23 +3,38 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DropBear.Codex.TemporalHistory.Services;
 
+/// <summary>
+///     Provides functionality to save audit entries into the database.
+/// </summary>
 public class AuditService
 {
+    private readonly AuditContext _auditContext;
     private readonly DbContext _context;
-    // Additional context or services needed to derive AuditLog fields
 
-    public AuditService(DbContext context) => _context = context;
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="AuditService" /> class.
+    /// </summary>
+    /// <param name="context">The database context.</param>
+    /// <param name="auditContext">The context containing audit information.</param>
+    public AuditService(DbContext context, AuditContext auditContext)
+    {
+        _context = context ?? throw new ArgumentNullException(nameof(context));
+        _auditContext = auditContext ?? throw new ArgumentNullException(nameof(auditContext));
+    }
 
-    public void SaveAuditEntries(IEnumerable<AuditEntry> auditEntries, Guid userId, string method, string reason)
+    /// <summary>
+    ///     Saves a collection of audit entries to the database.
+    /// </summary>
+    /// <param name="auditEntries">The audit entries to save.</param>
+    public void SaveAuditEntries(IEnumerable<AuditEntry> auditEntries)
     {
         var auditLogs = auditEntries.Select(entry => new AuditLog
         {
-            UserId = userId.ToString(),
-            ChangeTime = DateTime.UtcNow, // Assuming current time for simplicity
-            Method = method,
-            // RecordNumber should be derived or set based on the context of changes.
-            Reason = reason
-            // Additional fields as necessary based on the audit entry and application context
+            UserId = _auditContext.UserId.ToString(),
+            ChangeTime = DateTime.UtcNow,
+            OperationCode = _auditContext.OperationCode.ToString(),
+            Reason = _auditContext.Reason ?? string.Empty,
+            RecordNumber = entry.EntityId,
         }).ToList();
 
         _context.Set<AuditLog>().AddRange(auditLogs);

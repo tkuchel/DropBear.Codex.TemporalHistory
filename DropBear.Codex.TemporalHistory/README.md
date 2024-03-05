@@ -1,65 +1,76 @@
-# DropBear.Codex.TemporalHistory Library
+# DropBear Codex TemporalHistory Library
 
-A comprehensive library for managing temporal data and audit logging in .NET applications using Entity Framework Core.
+## Overview
+
+The DropBear Codex TemporalHistory Library provides a robust set of tools and services for managing, querying, and rolling back the state of entities within an application using Entity Framework Core. Designed to support temporal data management, this library allows applications to track changes over time, audit entity modifications, and revert entities to their historical states.
 
 ## Features
 
-- Temporal Data Tracking: Automatically track historical changes to entities in your database.
-- Audit Logging: Capture audit logs for entity changes, including who made the change and why.
-- Flexible Configuration: Configure global and entity-specific auditing settings to suit your application's needs.
-- Extension Methods: Easily apply configurations to your DbContext without inheritance.
+- **Temporal Entity Base**: A base class for entities that should be audited and support temporal features.
+- **Audit Logging**: Services and models to capture and persist audit logs, detailing who made changes, what those changes were, and when they were made.
+- **Temporal Queries**: A service to query the historical states of entities, supporting complex temporal queries.
+- **Rollback Capabilities**: A service to rollback entities to their previous states based on historical data.
 
 ## Getting Started
 
+### Prerequisites
+
+- .NET Core 3.1 or later
+- Entity Framework Core 3.1 or later
+
 ### Installation
 
-First, add the TemporalHistory library to your project using NuGet:
+1. Clone the repository or download the source code.
+2. Include the library in your .NET Core project.
+3. Configure your `DbContext` to inherit from `AuditableDbContext` for audit logging support.
+
+## Usage
+
+### Configuring Temporal Entities
+
+Implement the `TemporalEntityBase` for any entity that requires temporal features and audit logging. Ensure to configure the `DbContext` to apply temporal configurations using the `ModelBuilderExtensions`.
 
 ```csharp
-dotnet add package DropBear.Codex.TemporalHistory 
+public class MyEntity : TemporalEntityBase
+{
+    // Entity properties
+}
 ```
 
-### Configuration
+### Working with Audit Logs
 
-1. Service Registration: Register the necessary services and configurations in your Startup.cs or wherever you configure services.
-
-```csharp
-public void ConfigureServices(IServiceCollection services) {  services.AddTemporalHistory(config =>  {  config.GetCurrentUserIdFunc = () => "Implement logic to get current user ID";  config.GetChangeReasonFunc = (entity) => "Implement logic to determine change reason";  }); } 
-```
-2. DbContext Setup: If creating a new DbContext, inherit from TemporalDbContext. For existing DbContexts, use the provided extension method.
-
-- Inheriting from TemporalDbContext:
+Inject `AuditService` into your services or controllers to work with audit logs. Use the `SaveAuditEntries` method to persist audit entries.
 
 ```csharp
-public class MyDbContext : TemporalDbContext {  public MyDbContext(AuditableConfig auditableConfig, ILogger<TemporalDbContext> logger)  : base(auditableConfig, logger)  {  }   protected override void OnModelCreating(ModelBuilder modelBuilder)  {  base.OnModelCreating(modelBuilder);  modelBuilder.ApplyTemporalHistoryConfigurations();  } } 
-``` 
-- Using Extension Method:
-
-```csharp
- public class MyExistingDbContext : DbContext {  protected override void OnModelCreating(ModelBuilder modelBuilder)  {  base.OnModelCreating(modelBuilder);  modelBuilder.ApplyTemporalHistoryConfigurations();  } } 
+var auditService = new AuditService(context, new AuditContext { UserId = userId, Reason = "Update operation", OperationCode = OperationCode.Update });
+auditService.SaveAuditEntries(auditEntries);
 ```
 
+### Querying Historical Data
 
-### Generating Migrations
-
-After setting up your DbContext, generate migrations as usual:
+Use `TemporalQueryService<T>` to fetch historical states of your entities. Specify the entity type, key selector, entity ID, and the date range for the query.
 
 ```csharp
- dotnet ef migrations add InitialCreate --context MyDbContext 
+var history = temporalQueryService.GetHistoryForKey(e => e.Id, entityId, startDate, endDate);
 ```
 
-## Advanced Configuration
+### Performing Rollbacks
 
-The library offers flexibility for advanced configurations such as entity-specific auditing settings. Check the AuditableConfig class for more details.
+The `RollbackService<T>` provides functionality to rollback entities to their historical states. Specify the entity type, key selector, entity ID, and the target rollback date.
 
-## Contribution
+```csharp
+rollbackService.RollbackTo(e => e.Id, entityId, rollbackDate);
+```
 
-Contributions to the TemporalHistory library are welcome. Please refer to the contributing guidelines for more information.
+## Contributing
+
+Contributions are welcome! Please submit pull requests or open issues to discuss proposed changes or report bugs.
 
 ## License
 
-This project is licensed under the LGPL v3 License - see the [LICENSE](https://www.gnu.org/licenses/lgpl-3.0.en.html) for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
----
+## Acknowledgments
 
-Disclaimer: This library is still in development and may not be suitable for production use. Use at your own risk.
+- The Entity Framework Core team for providing a robust ORM for .NET
+- Contributors who have helped shape this library
