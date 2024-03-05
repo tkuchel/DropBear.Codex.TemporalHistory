@@ -1,70 +1,44 @@
-using DropBear.Codex.TemporalHistory.DataAccess;
-using DropBear.Codex.TemporalHistory.Interfaces;
+using System.Linq.Expressions;
+using DropBear.Codex.TemporalHistory.Bases;
 using Microsoft.EntityFrameworkCore;
 
 namespace DropBear.Codex.TemporalHistory.Services;
 
-/// <summary>
-///     Provides functionality to rollback entity states to their historical versions.
-/// </summary>
-public class RollbackService(TemporalDbContext context) : IRollbackService
+public class RollbackService<T> where T : TemporalEntityBase, new()
 {
-    private readonly TemporalDbContext _context = context ?? throw new ArgumentNullException(nameof(context));
-    private readonly Dictionary<Type, HashSet<string>> _exclusions = new();
+    private readonly DbContext _context;
+    private readonly TemporalQueryService<T> _temporalQueryService;
 
-    /// <summary>
-    ///     Asynchronously rolls back the state of an entity to a specified point in time.
-    /// </summary>
-    /// <typeparam name="T">The entity type implementing ITemporal.</typeparam>
-    /// <param name="recordId">The record ID to rollback.</param>
-    /// <param name="toDateTime">The point in time to rollback to.</param>
-    /// <returns>A task representing the asynchronous operation, with a result indicating success.</returns>
-    public async Task<bool> RollbackRecordAsync<T>(int recordId, DateTime toDateTime) where T : class, ITemporal
+    public RollbackService(DbContext context, TemporalQueryService<T> temporalQueryService)
     {
-        var historicalEntity = await _context.Set<T>()
-            .TemporalAsOf(toDateTime)
-            .SingleOrDefaultAsync(e => EF.Property<int>(e, "Id") == recordId)
-            .ConfigureAwait(false);
+        _context = context;
+        _temporalQueryService = temporalQueryService;
+    }
 
-        if (historicalEntity == null) return false; // Historical state not found.
+    public void RollbackTo<TKey>(Expression<Func<T, TKey>> idSelector, TKey entityId, DateTime rollbackDate)
+    {
+        // Assuming RollbackTo uses the same TKey for the entity's ID
+        var historicalStates = _temporalQueryService
+            .GetHistoryForKey(idSelector, entityId, rollbackDate, rollbackDate.AddDays(1)).ToList();
+        var historicalState = historicalStates.FirstOrDefault();
 
-        var currentEntity = await _context.Set<T>().FindAsync(recordId).ConfigureAwait(false);
-        if (currentEntity == null) return false; // Current state not found.
-
-        var properties = typeof(T).GetProperties().Where(p => p.CanWrite && !IsExcluded<T>(p.Name));
-        foreach (var prop in properties)
+        if (historicalState != null)
         {
-            var historicalValue = prop.GetValue(historicalEntity);
-            prop.SetValue(currentEntity, historicalValue);
+            // Assuming there's a method to update the current entity with the historical state
+            // This part of the implementation would depend on the specifics of how entities are updated in your application
+            UpdateEntityWithHistoricalState(entityId, historicalState);
+            _context.SaveChanges();
         }
-
-        await _context.SaveChangesAsync().ConfigureAwait(false);
-        return true;
     }
 
-    /// <summary>
-    ///     Adds a property name to the exclusion list for a given entity type.
-    /// </summary>
-    /// <typeparam name="T">The entity type.</typeparam>
-    /// <param name="propertyName">The property name to exclude from rollback operations.</param>
-    /// <returns>True if the exclusion was successfully added; otherwise, false.</returns>
-    public bool AddExclusion<T>(string propertyName) where T : class, ITemporal
+    private void UpdateEntityWithHistoricalState<TKey>(TKey entityId, T historicalState)
     {
-        if (string.IsNullOrWhiteSpace(propertyName))
-            throw new ArgumentException("Property name cannot be null or whitespace.", nameof(propertyName));
-
-        var type = typeof(T);
-        if (!_exclusions.ContainsKey(type)) _exclusions[type] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        return _exclusions[type].Add(propertyName);
+        // Example update logic, this would need to be implemented based on your application's requirements
+        var entity = _context.Set<T>().Find(entityId);
+        if (entity != null)
+        {
+            // Apply historical state to the current entity
+            // This might involve setting properties individually or using a more automated mapping approach
+        }
     }
-
-    /// <summary>
-    ///     Checks if a property is excluded for a given entity type.
-    /// </summary>
-    /// <typeparam name="T">The entity type.</typeparam>
-    /// <param name="propertyName">The property name to check.</param>
-    /// <returns>True if the property is excluded; otherwise, false.</returns>
-    private bool IsExcluded<T>(string propertyName) where T : class, ITemporal =>
-        _exclusions.TryGetValue(typeof(T), out var exclusions) && exclusions.Contains(propertyName);
 }
