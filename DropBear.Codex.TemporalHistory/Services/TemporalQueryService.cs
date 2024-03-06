@@ -119,30 +119,26 @@ public class TemporalQueryService<T> where T : TemporalEntityBase
     }
 
     /// <summary>
-    ///     Identifies entities that match a specified sequence of patterns within a date range.
+    /// Identifies entities that match a specified sequence of patterns within a date range.
     /// </summary>
-    /// <param name="patterns">A list of expressions defining the patterns to match against entity states.</param>
+    /// <param name="patterns">An enumerable of expressions defining the patterns to match against entity states.</param>
     /// <param name="from">The start date for matching patterns.</param>
     /// <param name="to">The end date for matching patterns.</param>
-    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="ArgumentException">Thrown if patterns is null or empty, or if from is not before to.</exception>
     /// <returns>An enumerable of entities matching the specified patterns within the date range.</returns>
-    public IEnumerable<T> GetEntitiesMatchingPattern(List<Expression<Func<T, bool>>> patterns, DateTime from,
-        DateTime to)
+    public IEnumerable<T> GetEntitiesMatchingPattern(IEnumerable<Expression<Func<T, bool>>> patterns, DateTime from, DateTime to)
     {
-        if (patterns is null || patterns.Count is 0)
-            throw new ArgumentException("Patterns list cannot be null or empty.", nameof(patterns));
-        if (from >= to) throw new ArgumentException("The start date must be before the end date.", nameof(from));
+        if (patterns is null || !patterns.Any())
+            throw new ArgumentException("Patterns enumerable cannot be null or empty.", nameof(patterns));
+        if (from >= to)
+            throw new ArgumentException("The start date must be before the end date.", nameof(from));
 
-        var matchingEntities = new List<T>();
+        var matchingEntities = patterns.SelectMany(pattern => _context.Set<T>()
+                .Where(pattern.Compile())
+                .AsEnumerable())
+            .Distinct()
+            .ToList();
 
-        foreach (var matched in patterns.Select(pattern => _context.Set<T>()
-                     .AsEnumerable() // Consider optimization
-                     .Where(entity => pattern.Compile().Invoke(entity))
-                     .ToList()))
-        {
-            matchingEntities.AddRange(matched);
-        }
-
-        return matchingEntities.Distinct().ToList();
+        return matchingEntities;
     }
 }

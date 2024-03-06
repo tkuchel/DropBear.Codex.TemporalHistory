@@ -18,7 +18,7 @@ public class TemporalEntityBase
         {
             // Example validation, could be extended based on requirements
             if (value > ValidTo)
-                throw new ArgumentException("ValidFrom must be earlier than ValidTo.", paramName: nameof(ValidFrom));
+                throw new ArgumentException("ValidFrom must be earlier than ValidTo.", paramName: nameof(value));
             _validFrom = value;
         }
     }
@@ -32,7 +32,7 @@ public class TemporalEntityBase
         set
         {
             if (value < ValidFrom)
-                throw new ArgumentException("ValidTo must be later than ValidFrom.", paramName: nameof(ValidTo));
+                throw new ArgumentException("ValidTo must be later than ValidFrom.", paramName: nameof(value));
             _validTo = value;
         }
     }
