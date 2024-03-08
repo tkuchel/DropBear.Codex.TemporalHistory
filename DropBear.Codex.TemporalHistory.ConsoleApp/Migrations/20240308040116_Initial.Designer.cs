@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DropBear.Codex.TemporalHistory.ConsoleApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240307095409_Initial")]
+    [Migration("20240308040116_Initial")]
     partial class Initial
     {
         /// <inheritdoc />

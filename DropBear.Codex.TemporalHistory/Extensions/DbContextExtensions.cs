@@ -34,10 +34,11 @@ public static class DbContextExtensions
     ///     The method uses the GetIdSelector expression defined in the IAuditableEntry interface to dynamically
     ///     extract the entity's identifier, supporting flexibility in how entities define their identifiers.
     /// </remarks>
-    private static List<AuditEntry> GenerateAuditEntries(this DbContext context) =>
-        context.ChangeTracker.Entries()
-            .Where(e => e.State != EntityState.Unchanged && e.Entity is IAuditableEntry)
-            .Select(entry =>
+    private static List<AuditEntry> GenerateAuditEntries(this DbContext context)
+    {
+        var entries = context.ChangeTracker.Entries();
+        var changedEntries = entries.Where(e => e.State != EntityState.Unchanged && e.Entity is IAuditableEntry).Select(
+            entry =>
             {
                 var auditableEntity = (IAuditableEntry)entry.Entity;
 
@@ -55,6 +56,10 @@ public static class DbContextExtensions
                 PopulateChanges(entry, auditEntry);
                 return auditEntry;
             }).ToList();
+        
+        return changedEntries;
+    }
+
 
     /// <summary>
     ///     Populates the audit entry with changes detected in the entity, excluding properties marked with [DoNotLog].
