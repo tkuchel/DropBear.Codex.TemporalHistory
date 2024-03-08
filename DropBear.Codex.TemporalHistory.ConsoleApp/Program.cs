@@ -11,11 +11,17 @@ namespace DropBear.Codex.TemporalHistory.ConsoleApp;
 internal class Program
 {
     private const string ConnectionString = "YourConnectionStringHere";
+    private const string LaptopConnectionString =
+        "Server=TDOG-STRIX-15\\SQLEXPRESS;Initial Catalog=TemporalHistory;Integrated Security=true;Encrypt=True;TrustServerCertificate=True;";
+
+    private const string TDogDevVmConnectionString =
+        "Server=TDOG-DEV-VM\\TDOGSQLSERVER;Initial Catalog=TemporalHistory;Integrated Security=true;Encrypt=True;TrustServerCertificate=True;";
 
     private static void Main(string[] args)
     {
+        
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-        optionsBuilder.UseSqlServer(ConnectionString);
+        optionsBuilder.UseSqlServer(TDogDevVmConnectionString);
 
         var auditContext = new AuditContext
         {

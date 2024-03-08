@@ -15,7 +15,7 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
     public AppDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-        optionsBuilder.UseSqlServer(LaptopConnectionString);
+        optionsBuilder.UseSqlServer(TDogDevVmConnectionString);
 
         // Create and configure an AuditContext as needed
         var auditContext = new AuditContext

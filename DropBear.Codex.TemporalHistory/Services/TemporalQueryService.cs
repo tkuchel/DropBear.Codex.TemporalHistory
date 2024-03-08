@@ -32,22 +32,17 @@ public class TemporalQueryService<T> where T : TemporalEntityBase
     public IEnumerable<T> GetHistoryForKey<TKey>(Expression<Func<T, TKey>> idSelector, TKey entityId, DateTime from,
         DateTime to)
     {
-        // Dynamically build a LINQ query to filter by the ID and the valid period
-        var entityParam = idSelector.Parameters.First();
-        var keyComparison = Expression.Equal(idSelector.Body, Expression.Constant(entityId));
-        var dateFilter = Expression.AndAlso(
-            Expression.GreaterThanOrEqual(Expression.Property(entityParam, nameof(TemporalEntityBase.ValidFrom)),
-                Expression.Constant(from)),
-            Expression.LessThanOrEqual(Expression.Property(entityParam, nameof(TemporalEntityBase.ValidTo)),
-                Expression.Constant(to))
-        );
+        // Assuming _context.Set<T>() supports temporal queries directly
+        var temporalQuery = _context.Set<T>()
+            .TemporalFromTo(from, to)
+            .AsQueryable();
 
+        // Apply the ID selector expression to filter the results
         var predicate = Expression.Lambda<Func<T, bool>>(
-            Expression.AndAlso(keyComparison, dateFilter),
-            entityParam
-        );
+            Expression.Equal(idSelector.Body, Expression.Constant(entityId)),
+            idSelector.Parameters.First());
 
-        return _context.Set<T>().Where(predicate).ToList();
+        return temporalQuery.Where(predicate).ToList();
     }
 
     /// <summary>
@@ -62,43 +57,25 @@ public class TemporalQueryService<T> where T : TemporalEntityBase
     public IEnumerable<PropertyChange> CompareEntityVersions<TKey>(Expression<Func<T, TKey>> idSelector, TKey entityId,
         DateTime firstDate, DateTime secondDate)
     {
-        if (firstDate >= secondDate) throw new ArgumentException("firstDate must be less than {secondDate}.",
-            nameof(firstDate));
+        if (firstDate >= secondDate)
+            throw new ArgumentException("First date must be less than second date.", nameof(firstDate));
 
-        var firstState = GetHistoryForKey(idSelector, entityId, firstDate, firstDate.AddDays(1)).FirstOrDefault();
-        var secondState = GetHistoryForKey(idSelector, entityId, secondDate, secondDate.AddDays(1)).FirstOrDefault();
+        // Correct approach to fetch entity states at specific points in time
+        var firstState = _context.Set<T>().TemporalAsOf(firstDate)
+            .SingleOrDefault(e => idSelector.Compile()(e).Equals(entityId));
+        var secondState = _context.Set<T>().TemporalAsOf(secondDate)
+            .SingleOrDefault(e => idSelector.Compile()(e).Equals(entityId));
 
-        if (firstState is null || secondState is null) return Enumerable.Empty<PropertyChange>();
+        if (firstState == null || secondState == null) return Enumerable.Empty<PropertyChange>();
 
+        // Proceed with comparison logic as before
         var differences = typeof(T).GetProperties()
             .Where(prop => prop.CanRead)
-            .Select(prop => new PropertyChange(prop.Name,
-                prop.GetValue(firstState),
-                prop.GetValue(secondState)))
-    .Where(change => !Equals(change.OriginalValue, change.CurrentValue))
+            .Select(prop => new PropertyChange(prop.Name, prop.GetValue(firstState), prop.GetValue(secondState)))
+            .Where(change => !Equals(change.OriginalValue, change.CurrentValue))
             .ToList();
 
         return differences;
-    }
-
-    /// <summary>
-    ///     Retrieves entities that have remained in a specified state for at least the given duration.
-    /// </summary>
-    /// <param name="stateExpression">An expression defining the state to check.</param>
-    /// <param name="minimumDuration">The minimum duration an entity must have remained in the state.</param>
-    /// <returns>An enumerable of entities matching the criteria.</returns>
-    public IEnumerable<T> GetEntitiesByStateDuration(Expression<Func<T, bool>> stateExpression,
-        TimeSpan minimumDuration)
-    {
-        if (minimumDuration <= TimeSpan.Zero)
-            throw new ArgumentException("minimumDuration must be greater than zero.", nameof(minimumDuration));
-
-        return _context.Set<T>()
-            .AsEnumerable() // Potentially heavy operation, consider optimizing
-            .Where(entity =>
-                stateExpression.Compile().Invoke(entity) &&
-                entity.ValidTo - entity.ValidFrom >= minimumDuration)
-            .ToList();
     }
 
     /// <summary>
@@ -112,30 +89,38 @@ public class TemporalQueryService<T> where T : TemporalEntityBase
     /// <returns>The number of changes made to the entity within the date range.</returns>
     public int GetChangeFrequency<TKey>(Expression<Func<T, TKey>> idSelector, TKey entityId, DateTime from, DateTime to)
     {
-        if (from >= to) throw new ArgumentException($"The start date must be before the end date.", nameof(from));
+        if (from >= to) throw new ArgumentException("The start date must be before the end date.", nameof(from));
 
+        // Correct approach to count historical states within a specified date range
+        var historyCount = _context.Set<T>()
+            .TemporalFromTo(from, to)
+            .Count(e => idSelector.Compile()(e).Equals(entityId));
 
-        return GetHistoryForKey(idSelector, entityId, from, to).Count();
+        return historyCount;
     }
 
     /// <summary>
-    /// Identifies entities that match a specified sequence of patterns within a date range.
+    ///     Identifies entities that match a specified sequence of patterns within a date range.
     /// </summary>
     /// <param name="patterns">An enumerable of expressions defining the patterns to match against entity states.</param>
     /// <param name="from">The start date for matching patterns.</param>
     /// <param name="to">The end date for matching patterns.</param>
     /// <exception cref="ArgumentException">Thrown if patterns is null or empty, or if from is not before to.</exception>
     /// <returns>An enumerable of entities matching the specified patterns within the date range.</returns>
-    public IEnumerable<T> GetEntitiesMatchingPattern(IEnumerable<Expression<Func<T, bool>>> patterns, DateTime from, DateTime to)
+    public IEnumerable<T> GetEntitiesMatchingPattern(IEnumerable<Expression<Func<T, bool>>> patterns, DateTime from,
+        DateTime to)
     {
-        if (patterns is null || !patterns.Any())
+        if (patterns == null || !patterns.Any())
             throw new ArgumentException("Patterns enumerable cannot be null or empty.", nameof(patterns));
         if (from >= to)
             throw new ArgumentException("The start date must be before the end date.", nameof(from));
 
-        var matchingEntities = patterns.SelectMany(pattern => _context.Set<T>()
-                .Where(pattern.Compile())
-                .AsEnumerable())
+        var temporalQuery = _context.Set<T>().TemporalFromTo(from, to);
+
+        // This simplistic approach fetches entities matching any of the patterns within the time frame
+        // A more complex logic may be required depending on pattern matching requirements
+        var matchingEntities = patterns
+            .SelectMany(pattern => temporalQuery.Where(pattern).AsEnumerable())
             .Distinct()
             .ToList();
 

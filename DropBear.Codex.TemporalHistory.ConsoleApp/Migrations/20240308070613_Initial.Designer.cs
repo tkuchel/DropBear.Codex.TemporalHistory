@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DropBear.Codex.TemporalHistory.ConsoleApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240308040116_Initial")]
+    [Migration("20240308070613_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -40,21 +40,21 @@ namespace DropBear.Codex.TemporalHistory.ConsoleApp.Migrations
                     b.Property<DateTime>("OrderDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
-
-                    b.Property<DateTime>("SysEndTime")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("SysEndTime");
-
-                    b.Property<DateTime>("SysStartTime")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("SysStartTime");
 
                     b.Property<DateTime>("ValidFrom")
                         .HasColumnType("datetime2");
@@ -70,11 +70,11 @@ namespace DropBear.Codex.TemporalHistory.ConsoleApp.Migrations
                             {
                                 ttb.UseHistoryTable("OrderHistory");
                                 ttb
-                                    .HasPeriodStart("SysStartTime")
-                                    .HasColumnName("SysStartTime");
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
                                 ttb
-                                    .HasPeriodEnd("SysEndTime")
-                                    .HasColumnName("SysEndTime");
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
                             }));
                 });
 
@@ -94,18 +94,18 @@ namespace DropBear.Codex.TemporalHistory.ConsoleApp.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18, 4)");
-
-                    b.Property<DateTime>("SysEndTime")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("SysEndTime");
-
-                    b.Property<DateTime>("SysStartTime")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("SysStartTime");
 
                     b.Property<DateTime>("ValidFrom")
                         .HasColumnType("datetime2");
@@ -121,11 +121,11 @@ namespace DropBear.Codex.TemporalHistory.ConsoleApp.Migrations
                             {
                                 ttb.UseHistoryTable("ProductHistory");
                                 ttb
-                                    .HasPeriodStart("SysStartTime")
-                                    .HasColumnName("SysStartTime");
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
                                 ttb
-                                    .HasPeriodEnd("SysEndTime")
-                                    .HasColumnName("SysEndTime");
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
                             }));
                 });
 

@@ -1,39 +1,9 @@
 namespace DropBear.Codex.TemporalHistory.Bases;
 
 /// <summary>
-///     Represents the base class for temporal entities, providing properties to track the validity period.
+///     Represents the base class for temporal entities.
 /// </summary>
 public class TemporalEntityBase
 {
-    private DateTime _validFrom;
-    private DateTime _validTo;
-
-    /// <summary>
-    ///     Gets or sets the start date and time of the validity period.
-    /// </summary>
-    public DateTime ValidFrom
-    {
-        get => _validFrom;
-        set
-        {
-            // Example validation, could be extended based on requirements
-            if (value > ValidTo)
-                throw new ArgumentException("ValidFrom must be earlier than ValidTo.", paramName: nameof(value));
-            _validFrom = value;
-        }
-    }
-
-    /// <summary>
-    ///     Gets or sets the end date and time of the validity period.
-    /// </summary>
-    public DateTime ValidTo
-    {
-        get => _validTo;
-        set
-        {
-            if (value < ValidFrom)
-                throw new ArgumentException("ValidTo must be later than ValidFrom.", paramName: nameof(value));
-            _validTo = value;
-        }
-    }
+   
 }
