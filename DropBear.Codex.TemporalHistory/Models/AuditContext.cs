@@ -7,18 +7,17 @@ namespace DropBear.Codex.TemporalHistory.Models;
 /// </summary>
 public class AuditContext
 {
-    /// <summary>
-    ///     Gets or sets the identifier of the user associated with the audit operation.
-    /// </summary>
-    public Guid UserId { get; set; }
+    private readonly Guid _userId;
 
-    /// <summary>
-    ///     Gets or sets the reason for the audit operation. This property can be null if no reason is specified.
-    /// </summary>
-    public string? Reason { get; set; }
+    public Guid UserId
+    {
+        get => _userId;
+        init => _userId = value != Guid.Empty
+            ? value
+            : throw new ArgumentException("UserId cannot be empty.", nameof(value));
+    }
 
-    /// <summary>
-    ///     Gets or sets the code representing the type of operation being audited.
-    /// </summary>
-    public OperationCode OperationCode { get; set; }
+    public string? Reason { get; init; }
+
+    public OperationCode OperationCode { get; init; }
 }

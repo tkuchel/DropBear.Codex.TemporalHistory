@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Microsoft.EntityFrameworkCore;
 
 namespace DropBear.Codex.TemporalHistory.Models;
@@ -8,29 +9,29 @@ namespace DropBear.Codex.TemporalHistory.Models;
 public class AuditEntry
 {
     /// <summary>
-    ///     Initializes a new instance of the <see cref="AuditEntry" /> class.
+    ///     Initializes a new instance of the <see cref="AuditEntry" /> class for a specified entity.
     /// </summary>
-    /// <param name="entity">The entity being audited.</param>
-    /// <param name="state">The state of the entity.</param>
-    /// <param name="entityId">The identifier of the entity.</param>
-    /// <param name="lastModifiedBy">The identifier of the user who last modified the entity.</param>
-    /// <param name="lastModifiedAt">The date and time when the entity was last modified.</param>
-    public AuditEntry(object entity, EntityState state, Guid entityId, Guid lastModifiedBy, DateTime lastModifiedAt)
+    /// <param name="entityType">The type of the entity being audited.</param>
+    /// <param name="state">The state of the entity at the time of audit.</param>
+    /// <param name="entityId"> The id for the specific entity </param>
+    public AuditEntry(Type entityType, EntityState state, Guid entityId)
     {
-        EntityType = entity.GetType();
+        EntityType = entityType;
         State = state;
+        Changes = new Collection<PropertyChange>();
         EntityId = entityId;
-        LastModifiedBy = lastModifiedBy;
-        LastModifiedAt = lastModifiedAt;
-        Changes = new List<PropertyChange>();
     }
 
+    // ReSharper disable once UnusedAutoPropertyAccessor.Global
     public Type EntityType { get; }
+
+    // ReSharper disable once UnusedAutoPropertyAccessor.Global
     public EntityState State { get; }
-    private List<PropertyChange> Changes { get; }
-    public Guid EntityId { get; }
-    public Guid LastModifiedBy { get; }
-    public DateTime LastModifiedAt { get; }
+
+    // ReSharper disable once CollectionNeverQueried.Local
+    private Collection<PropertyChange> Changes { get; }
+
+    public Guid EntityId { get; set; }
 
     /// <summary>
     ///     Adds a change to the list of property changes for this audit entry.

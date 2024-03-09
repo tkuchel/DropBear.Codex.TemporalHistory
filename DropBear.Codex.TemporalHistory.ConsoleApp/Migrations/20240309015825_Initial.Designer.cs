@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DropBear.Codex.TemporalHistory.ConsoleApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240308070613_Initial")]
+    [Migration("20240309015825_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -55,12 +55,6 @@ namespace DropBear.Codex.TemporalHistory.ConsoleApp.Migrations
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
-
-                    b.Property<DateTime>("ValidFrom")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ValidTo")
-                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -106,12 +100,6 @@ namespace DropBear.Codex.TemporalHistory.ConsoleApp.Migrations
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18, 4)");
-
-                    b.Property<DateTime>("ValidFrom")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ValidTo")
-                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 

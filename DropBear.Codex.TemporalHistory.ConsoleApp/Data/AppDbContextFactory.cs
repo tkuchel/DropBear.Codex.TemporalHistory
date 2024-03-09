@@ -12,10 +12,11 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 
     private const string TDogDevVmConnectionString =
         "Server=TDOG-DEV-VM\\TDOGSQLSERVER;Initial Catalog=TemporalHistory;Integrated Security=true;Encrypt=True;TrustServerCertificate=True;";
+
     public AppDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-        optionsBuilder.UseSqlServer(TDogDevVmConnectionString);
+        optionsBuilder.UseSqlServer(LaptopConnectionString);
 
         // Create and configure an AuditContext as needed
         var auditContext = new AuditContext

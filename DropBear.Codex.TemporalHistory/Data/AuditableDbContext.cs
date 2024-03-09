@@ -1,12 +1,12 @@
-using DropBear.Codex.TemporalHistory.Interfaces;
-using DropBear.Codex.TemporalHistory.Models;
+using DropBear.Codex.TemporalHistory.Exceptions;
 using DropBear.Codex.TemporalHistory.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace DropBear.Codex.TemporalHistory.Data;
 
 /// <summary>
-///     Represents a database context with auditing capabilities for entities that implement IAuditableEntry.
+///     Represents a database context with auditing capabilities for entities. This context intercepts save operations to
+///     include audit logging, supporting both synchronous and asynchronous saves.
 /// </summary>
 public abstract class AuditableDbContext : DbContext
 {
@@ -16,73 +16,61 @@ public abstract class AuditableDbContext : DbContext
     ///     Initializes a new instance of the AuditableDbContext class with the specified options and audit service.
     /// </summary>
     /// <param name="options">The options to be used by the DbContext.</param>
-    /// <param name="auditService">The audit service for processing audit entries.</param>
+    /// <param name="auditService">The audit service responsible for processing audit logs.</param>
     protected AuditableDbContext(DbContextOptions options, AuditService auditService)
-        : base(options) =>
-        _auditService = auditService;
+        : base(options) => _auditService = auditService;
 
+    /// <summary>
+    ///     Saves all changes made in this context to the database with auditing.
+    /// </summary>
+    /// <param name="acceptAllChangesOnSuccess">
+    ///     A value indicating whether all changes should be accepted upon successfully
+    ///     saving to the database.
+    /// </param>
+    /// <returns>The number of state entries written to the database.</returns>
+    /// <exception cref="AuditException">Thrown when an error occurs during the auditing process.</exception>
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
-        // Consider adding try-catch blocks around this logic for improved error handling
-        var auditEntries = OnBeforeSaveChanges();
-        var result = base.SaveChanges(acceptAllChangesOnSuccess);
-        OnAfterSaveChanges(auditEntries);
-        return result;
+        try
+        {
+            var entries = _auditService.PrepareSaveChanges();
+            var result = base.SaveChanges(acceptAllChangesOnSuccess);
+            _auditService.CompleteSaveChanges(entries);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            throw new AuditException("An error occurred during the audit process in SaveChanges.", ex);
+        }
     }
 
     /// <summary>
-    ///     Processes entities about to be saved to generate audit entries.
+    ///     Asynchronously saves all changes made in this context to the database with auditing.
     /// </summary>
-    /// <returns>A list of <see cref="AuditEntry" /> objects representing the audit history.</returns>
-    private List<AuditEntry> OnBeforeSaveChanges()
+    /// <param name="acceptAllChangesOnSuccess">
+    ///     A value indicating whether all changes should be accepted upon successfully
+    ///     saving to the database.
+    /// </param>
+    /// <param name="cancellationToken">A CancellationToken to observe while waiting for the task to complete.</param>
+    /// <returns>
+    ///     A task that represents the asynchronous save operation. The task result contains the number of state entries
+    ///     written to the database.
+    /// </returns>
+    /// <exception cref="AuditException">Thrown when an error occurs during the auditing process.</exception>
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default)
     {
-        ChangeTracker.DetectChanges();
-        var auditEntries = new List<AuditEntry>();
-        foreach (var entry in ChangeTracker.Entries())
+        try
         {
-            if (!(entry.Entity is IAuditableEntry auditableEntity) || entry.State == EntityState.Detached ||
-                entry.State == EntityState.Unchanged)
-                continue;
-
-            // Retrieve the ID using the entity's GetIdSelector method
-            var entityIdExpression = auditableEntity.GetIdSelector();
-            var compiledExpression = entityIdExpression.Compile();
-            var entityId = (Guid)(compiledExpression.DynamicInvoke() ?? Guid.Empty);
-
-            var auditEntry = new AuditEntry(
-                entry.Entity,
-                entry.State,
-                entityId,
-                auditableEntity.LastModifiedBy,
-                auditableEntity.LastModifiedAt);
-
-            foreach (var property in entry.Properties)
-                if (property.IsModified)
-                    auditEntry.AddChange(property.Metadata.Name, property.OriginalValue, property.CurrentValue);
-
-            auditEntries.Add(auditEntry);
+            var entries = await _auditService.PrepareSaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken)
+                .ConfigureAwait(false);
+            await _auditService.CompleteSaveChangesAsync(entries, cancellationToken).ConfigureAwait(false);
+            return result;
         }
-
-        return auditEntries;
-    }
-
-    /// <summary>
-    ///     Processes the generated audit entries after changes have been saved to the database.
-    /// </summary>
-    /// <param name="auditEntries">The list of audit entries to process.</param>
-    private static void OnAfterSaveChanges(List<AuditEntry>? auditEntries)
-    {
-        if (auditEntries is null || auditEntries.Count is 0)
-            return;
-
-        foreach (var auditEntry in auditEntries)
+        catch (Exception ex)
         {
-            // Placeholder for logic to save audit entries
-            // _auditService.Save(auditEntry); // Example call to a potentially modified AuditService to accommodate batch saving
+            throw new AuditException("An error occurred during the audit process in SaveChangesAsync.", ex);
         }
-        // Consider logging successful audit saving
-        // Log.Information("Successfully saved {AuditEntryCount} audit entries.", auditEntries.Count);
     }
-
-// Note: Implementation of SaveChangesAsync should follow a similar pattern to SaveChanges, including error handling and logging.
 }

@@ -26,7 +26,11 @@ public class AppDbContext : DbContext
         _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
     }
 
-    // Other DbContext setup...
+    public AuditService GetAuditService()
+    {
+        if (_auditService == null) throw new InvalidOperationException("AuditService has not been initialized.");
+        return _auditService;
+    }
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -1,3 +1,5 @@
+using DropBear.Codex.TemporalHistory.Enums;
+
 namespace DropBear.Codex.TemporalHistory.Models;
 
 /// <summary>
@@ -5,35 +7,30 @@ namespace DropBear.Codex.TemporalHistory.Models;
 /// </summary>
 public class AuditLog
 {
-    /// <summary>
-    ///     Gets or sets the primary key of the audit log entry.
-    /// </summary>
     public int Id { get; init; }
 
     /// <summary>
-    ///     Gets or sets the identifier of the user who made the change.
-    ///     Consider using Guid if the user system uses Guids for identifiers.
+    ///     The identifier of the user who made the change.
     /// </summary>
-    public string UserId { get; init; } = Guid.Empty.ToString();
+    public Guid UserId { get; init; }
 
     /// <summary>
-    ///     Gets or sets the timestamp when the change was made.
+    ///     The timestamp when the change was made.
     /// </summary>
-    public DateTime ChangeTime { get; init; } = DateTime.UtcNow;
+    public DateTime ChangeTime { get; init; }
 
     /// <summary>
-    ///     Gets or sets the operation code representing how the change was made.
-    ///     Consider using an enum if there are predefined operation codes.
+    ///     The operation code representing how the change was made.
     /// </summary>
-    public string OperationCode { get; init; } = string.Empty;
+    public OperationCode OperationCode { get; init; }
 
     /// <summary>
-    ///     Gets or sets the unique identifier linking this log to a record in a temporal table.
+    ///     A unique identifier linking this log to a record in a temporal table.
     /// </summary>
     public Guid RecordNumber { get; init; }
 
     /// <summary>
-    ///     Gets or sets the reason why the change was made.
+    ///     The reason why the change was made.
     /// </summary>
     public string Reason { get; init; } = string.Empty;
 }

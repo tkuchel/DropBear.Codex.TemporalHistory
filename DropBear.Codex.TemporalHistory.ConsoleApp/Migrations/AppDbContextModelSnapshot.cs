@@ -53,12 +53,6 @@ namespace DropBear.Codex.TemporalHistory.ConsoleApp.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("ValidFrom")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ValidTo")
-                        .HasColumnType("datetime2");
-
                     b.HasKey("Id");
 
                     b.ToTable("Orders");
@@ -103,12 +97,6 @@ namespace DropBear.Codex.TemporalHistory.ConsoleApp.Migrations
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18, 4)");
-
-                    b.Property<DateTime>("ValidFrom")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ValidTo")
-                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
