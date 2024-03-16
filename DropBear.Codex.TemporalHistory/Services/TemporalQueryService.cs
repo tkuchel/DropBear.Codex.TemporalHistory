@@ -79,7 +79,7 @@ public class TemporalQueryService<T> where T : class // Assuming T is a class
             Expression.Equal(idSelector.Body, Expression.Constant(entityId)),
             idSelector.Parameters);
 
-        var result = await query.Where(predicate).ToListAsync();
+        var result = await query.Where(predicate).ToListAsync().ConfigureAwait(false);
         return result;
     }
 
@@ -91,23 +91,27 @@ public class TemporalQueryService<T> where T : class // Assuming T is a class
         Expression<Func<T, TKey>> idSelector, TKey entityId,
         DateTime firstDate, DateTime secondDate)
     {
-        if (firstDate >= secondDate) throw new ArgumentException("First date must be before the second date.");
+        if (firstDate >= secondDate) throw new ArgumentException("First date must be before the second date.", nameof(firstDate));
 
         try
         {
             // Adjusted to asynchronous querying using FirstOrDefaultAsync
             var firstState = await _context.Set<T>().TemporalAsOf(firstDate)
-                .FirstOrDefaultAsync(e => EF.Property<TKey>(e, "Id").Equals(entityId));
+                .FirstOrDefaultAsync(e => EF.Property<TKey>(e, "Id")!.Equals(entityId)).ConfigureAwait(false);
             var secondState = await _context.Set<T>().TemporalAsOf(secondDate)
-                .FirstOrDefaultAsync(e => EF.Property<TKey>(e, "Id").Equals(entityId));
+                .FirstOrDefaultAsync(e => EF.Property<TKey>(e, "Id")!.Equals(entityId)).ConfigureAwait(false);
 
-            if (firstState == null || secondState == null) return Enumerable.Empty<PropertyChange>();
+            if (firstState is null || secondState is null) return Enumerable.Empty<PropertyChange>();
 
-            // Comparison logic remains unchanged
+            // Compare the two states and identify property changes
+            // Example placeholder for comparing entity versions and identifying property changes
+            
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error comparing entity versions.");
+#pragma warning disable CA1848
+            _logger?.LogError(ex, "Error comparing entity versions.");
+#pragma warning restore CA1848
             throw; // Re-throwing to maintain the method's contract or handle as needed.
         }
 
@@ -128,11 +132,13 @@ public class TemporalQueryService<T> where T : class // Assuming T is a class
             // Corrected to asynchronous count using CountAsync
             return await _context.Set<T>()
                 .TemporalFromTo(from, to)
-                .CountAsync(e => EF.Property<TKey>(e, "Id").Equals(entityId));
+                .CountAsync(e => EF.Property<TKey>(e, "Id")!.Equals(entityId)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
+#pragma warning disable CA1848
             _logger.LogError(ex, "Error counting changes for entity.");
+#pragma warning restore CA1848
             throw; // Re-throwing to ensure errors are not silently ignored.
         }
     }
@@ -141,11 +147,11 @@ public class TemporalQueryService<T> where T : class // Assuming T is a class
     ///     Asynchronously identifies entities that match a specified sequence of patterns within a date range.
     /// </summary>
     /// <exception cref="ArgumentException">Thrown if patterns is null, empty, or if from is not before to.</exception>
-    public async Task<IEnumerable<T>?> GetEntitiesMatchingPatternAsync(IEnumerable<Expression<Func<T, bool>>> patterns,
+    public Task<IEnumerable<T>?> GetEntitiesMatchingPatternAsync(IEnumerable<Expression<Func<T, bool>>> patterns,
         DateTime from,
         DateTime to)
     {
-        if (patterns == null || !patterns.Any())
+        if (patterns is null || !patterns.Any())
             throw new ArgumentException("Patterns enumerable cannot be null or empty.", nameof(patterns));
         if (from >= to)
             throw new ArgumentException("The start date must be before the end date.", nameof(from));
@@ -158,10 +164,12 @@ public class TemporalQueryService<T> where T : class // Assuming T is a class
         }
         catch (Exception ex)
         {
+#pragma warning disable CA1848
             _logger.LogError(ex, "Error identifying entities matching patterns.");
+#pragma warning restore CA1848
             throw; // Re-throwing to maintain method contract and error visibility.
         }
 
-        return null;
+        return Task.FromResult<IEnumerable<T>?>(null);
     }
 }
