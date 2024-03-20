@@ -17,6 +17,9 @@
         <RepositoryType>Git</RepositoryType>
     </PropertyGroup>
 
+    <ItemGroup>
+        <None Include="..\README.md" Pack="true" PackagePath="\"/>
+    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="Meziantou.DotNet.CodingStandard" Version="1.0.119">
