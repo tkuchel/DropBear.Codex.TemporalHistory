@@ -85,8 +85,7 @@ public class TemporalQueryService<T>(DbContext context, IAppLogger<TemporalQuery
     ///     Asynchronously compares two versions of an entity based on timestamps and identifies property changes.
     /// </summary>
     /// <exception cref="ArgumentException">Thrown if idSelector does not target a property.</exception>
-    public async Task<IEnumerable<PropertyChange>?> CompareEntityVersionsAsync<TKey>(
-        Expression<Func<T, TKey>> idSelector, TKey entityId,
+    public async Task<IEnumerable<PropertyChange>?> CompareEntityVersionsAsync<TKey>( TKey entityId,
         DateTime firstDate, DateTime secondDate)
     {
         if (firstDate >= secondDate)
@@ -120,7 +119,7 @@ public class TemporalQueryService<T>(DbContext context, IAppLogger<TemporalQuery
     ///     Asynchronously counts the number of changes for an entity within a specified date range.
     /// </summary>
     /// <exception cref="ArgumentException">Thrown if the start date is not before the end date.</exception>
-    public async Task<int> GetChangeFrequencyAsync<TKey>(Expression<Func<T, TKey>> idSelector, TKey entityId,
+    public async Task<int> GetChangeFrequencyAsync<TKey>(TKey entityId,
         DateTime from, DateTime to)
     {
         if (from >= to) throw new ArgumentException("The start date must be before the end date.", nameof(from));

@@ -171,7 +171,7 @@ public class Application
             var secondDate = timestamps.Last();
 
             var changes = await _temporalQueryService.CompareEntityVersionsAsync(
-                p => p.Id, productId, firstDate, secondDate);
+                 productId, firstDate, secondDate);
 
             foreach (var change in changes)
                 _logger.LogInformation(ZString.Format("Property: {0}, Old Value: {1}, New Value: {2}",
