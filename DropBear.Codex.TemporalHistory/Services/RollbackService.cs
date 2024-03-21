@@ -1,8 +1,8 @@
 using System.Linq.Expressions;
 using System.Reflection;
-using DropBear.Codex.TemporalHistory.Extensions;
+using Cysharp.Text;
+using DropBear.Codex.AppLogger.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace DropBear.Codex.TemporalHistory.Services;
 
@@ -13,14 +13,14 @@ namespace DropBear.Codex.TemporalHistory.Services;
 public class RollbackService<T>(
     DbContext context,
     TemporalQueryService<T> temporalQueryService,
-    ILogger<RollbackService<T>> logger)
+    IAppLogger<RollbackService<T>> logger)
     where T : class
 {
     private readonly DbContext _context = context ?? throw new ArgumentNullException(nameof(context));
 
-    private readonly ILogger<RollbackService<T>>
+    private readonly IAppLogger<RollbackService<T>>
         _logger = logger ?? throw new ArgumentNullException(nameof(logger)); // Initialize logger
-        // Logger instance
+    // Logger instance
 
     private readonly TemporalQueryService<T> _temporalQueryService =
         temporalQueryService ?? throw new ArgumentNullException(nameof(temporalQueryService));
@@ -52,8 +52,8 @@ public class RollbackService<T>(
         }
         catch (Exception ex)
         {
-            LoggerMessageExtensions.LogError(_logger,
-                $"Failed attempting to rollback entity: {entityId} to {rollbackDate}", ex);
+            _logger.LogError(ex,
+                ZString.Format("Failed attempting to rollback entity: {0} to {1}", entityId, rollbackDate));
             throw; // Re-throw to allow further handling up the stack if necessary.
         }
     }
@@ -70,7 +70,7 @@ public class RollbackService<T>(
         var entity = await _context.Set<T>().FindAsync(entityId).ConfigureAwait(false);
         if (entity is null)
         {
-            _logger.LogWarning($"Entity with ID: {entityId} not found for rollback.");
+            _logger.LogWarning(ZString.Format("Entity with ID: {0} not found for rollback.", entityId));
             return;
         }
 
@@ -85,8 +85,8 @@ public class RollbackService<T>(
         }
 
         _context.Update(entity);
-        _logger.LogInformation(
-            $"Entity with ID: {entityId} has been updated with historical state from {historicalState}");
+        _logger.LogInformation(ZString.Format("Entity with ID: {0} has been updated with historical state from {1}",
+            entityId, historicalState));
     }
 
 
@@ -114,13 +114,13 @@ public class RollbackService<T>(
 
             UpdateEntityWithHistoricalState(entityId, historicalState);
             _context.SaveChanges();
-            _logger.LogInformation(
-                $"Entity with ID: {entityId} has been updated with historical state from {historicalState}");
+            _logger.LogInformation(ZString.Format("Entity with ID: {0} has been updated with historical state from {1}",
+                entityId, historicalState));
         }
         catch (Exception ex)
         {
-            LoggerMessageExtensions.LogError(_logger,
-                $"Failed attempting to rollback entity: {entityId} to {rollbackDate}", ex);
+            _logger.LogError(ex,
+                ZString.Format("Failed attempting to rollback entity: {0} to {1}", entityId, rollbackDate));
             throw; // Consider rethrowing to allow further handling up the call stack or handle gracefully here
         }
     }
@@ -130,7 +130,7 @@ public class RollbackService<T>(
         var entity = _context.Set<T>().Find(entityId);
         if (entity is null)
         {
-            _logger.LogWarning($"Entity with ID: {entityId} not found for rollback.");
+            _logger.LogWarning(ZString.Format("Entity with ID: {0} not found for rollback.", entityId));
             return;
         }
 

@@ -1,9 +1,10 @@
-﻿using DropBear.Codex.TemporalHistory.ConsoleApp.Data;
+﻿using Cysharp.Text;
+using DropBear.Codex.AppLogger.Interfaces;
+using DropBear.Codex.TemporalHistory.ConsoleApp.Data;
 using DropBear.Codex.TemporalHistory.ConsoleApp.Models;
 using DropBear.Codex.TemporalHistory.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace DropBear.Codex.TemporalHistory.ConsoleApp;
 
@@ -24,8 +25,7 @@ internal class Program
         IServiceCollection services = new ServiceCollection();
 
         // Configure logging
-        services.AddLogging(configure => configure.AddConsole())
-            .AddTransient<Application>();
+        services.AddTransient<Application>();
 
         // Add EF DbContext with options
         services.AddDbContext<AppDbContext>(options =>
@@ -44,11 +44,11 @@ public class Application
 {
     private readonly AuditService _auditService;
     private readonly AppDbContext _dbContext;
-    private readonly ILogger<Application> _logger;
+    private readonly IAppLogger<Application> _logger;
     private readonly RollbackService<Product> _rollbackService;
     private readonly TemporalQueryService<Product> _temporalQueryService;
 
-    public Application(ILogger<Application> logger, AppDbContext dbContext,
+    public Application(IAppLogger<Application> logger, AppDbContext dbContext,
         AuditService auditService, TemporalQueryService<Product> temporalQueryService,
         RollbackService<Product> rollbackService)
     {
@@ -106,7 +106,7 @@ public class Application
             await _dbContext.Products.AddAsync(newProduct);
             await _dbContext.SaveChangesAsync();
 
-            _logger.LogInformation($"Added new product: {newProduct.Name} with price {newProduct.Price}");
+            _logger.LogInformation(ZString.Format("Added new product: {0}", newProduct.Name));
         }
         catch (Exception ex)
         {
@@ -133,8 +133,8 @@ public class Application
 
             await _dbContext.SaveChangesAsync();
 
-            _logger.LogInformation(
-                $"Edited product: {productToEdit.Name}, old price: {oldPrice}, new price: {productToEdit.Price}");
+            _logger.LogInformation(ZString.Format("Edited product: {0}, Old Price: {1}, New Price: {2}",
+                productToEdit.Name, oldPrice, productToEdit.Price));
         }
         catch (Exception ex)
         {
@@ -174,8 +174,8 @@ public class Application
                 p => p.Id, productId, firstDate, secondDate);
 
             foreach (var change in changes)
-                _logger.LogInformation(
-                    $"Property: {change.PropertyName}, Original: {change.OriginalValue}, Current: {change.CurrentValue}");
+                _logger.LogInformation(ZString.Format("Property: {0}, Old Value: {1}, New Value: {2}",
+                    change.PropertyName, change.OriginalValue, change.CurrentValue));
         }
         catch (Exception ex)
         {
@@ -196,7 +196,7 @@ public class Application
                 .Where(p => p.Id == productId)
                 .CountAsync();
 
-            _logger.LogInformation($"Product {productId} underwent {historyCount} changes.");
+            _logger.LogInformation(ZString.Format("Product {0} has been changed {1} times.", productId, historyCount));
         }
         catch (Exception ex)
         {
@@ -222,7 +222,7 @@ public class Application
             var rollbackDate = DateTime.UtcNow.AddDays(-new Random().Next(1, 30));
             await _rollbackService.RollbackToAsync(p => p.Id, productId, rollbackDate);
 
-            _logger.LogInformation($"Product {productId} has been rolled back to {rollbackDate}.");
+            _logger.LogInformation(ZString.Format("Product {0} has been rolled back to {1}.", productId, rollbackDate));
         }
         catch (Exception ex)
         {
@@ -248,7 +248,7 @@ public class Application
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to fetch change timestamps for product {ProductId}", productId);
+            _logger.LogError(ex, ZString.Format("Error fetching change timestamps for product: {0}", productId));
             throw;
         }
     }

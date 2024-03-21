@@ -1,23 +1,21 @@
 using System.Linq.Expressions;
+using DropBear.Codex.AppLogger.Interfaces;
 using DropBear.Codex.TemporalHistory.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace DropBear.Codex.TemporalHistory.Services;
 
-public class TemporalQueryService<T> where T : class // Assuming T is a class
+public class TemporalQueryService<T>(DbContext context, IAppLogger<TemporalQueryService<T>> logger)
+    where T : class
 {
-    private readonly DbContext _context;
-    private readonly ILogger<TemporalQueryService<T>> _logger; // Logger instance
+    private readonly DbContext _context = context ?? throw new ArgumentNullException(nameof(context));
 
-    public TemporalQueryService(DbContext context, ILogger<TemporalQueryService<T>> logger)
-    {
-        _context = context ?? throw new ArgumentNullException(nameof(context));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger)); // Initialize logger
-    }
+    private readonly IAppLogger<TemporalQueryService<T>> _logger =
+        logger ?? throw new ArgumentNullException(nameof(logger)); // Initialize logger
+    // Logger instance
 
     /// <summary>
-    ///     Ssynchronously retrieves the historical states for an entity identified by a key within a specified date range.
+    ///     Synchronously retrieves the historical states for an entity identified by a key within a specified date range.
     /// </summary>
     /// <typeparam name="TKey">The type of the key used to identify the entity.</typeparam>
     /// <param name="idSelector">An expression to select the entity key.</param>
@@ -91,7 +89,8 @@ public class TemporalQueryService<T> where T : class // Assuming T is a class
         Expression<Func<T, TKey>> idSelector, TKey entityId,
         DateTime firstDate, DateTime secondDate)
     {
-        if (firstDate >= secondDate) throw new ArgumentException("First date must be before the second date.", nameof(firstDate));
+        if (firstDate >= secondDate)
+            throw new ArgumentException("First date must be before the second date.", nameof(firstDate));
 
         try
         {
@@ -105,12 +104,11 @@ public class TemporalQueryService<T> where T : class // Assuming T is a class
 
             // Compare the two states and identify property changes
             // Example placeholder for comparing entity versions and identifying property changes
-            
         }
         catch (Exception ex)
         {
 #pragma warning disable CA1848
-            _logger?.LogError(ex, "Error comparing entity versions.");
+            _logger.LogError(ex, "Error comparing entity versions.");
 #pragma warning restore CA1848
             throw; // Re-throwing to maintain the method's contract or handle as needed.
         }
@@ -147,20 +145,23 @@ public class TemporalQueryService<T> where T : class // Assuming T is a class
     ///     Asynchronously identifies entities that match a specified sequence of patterns within a date range.
     /// </summary>
     /// <exception cref="ArgumentException">Thrown if patterns is null, empty, or if from is not before to.</exception>
-    public Task<IEnumerable<T>?> GetEntitiesMatchingPatternAsync(IEnumerable<Expression<Func<T, bool>>> patterns,
+    public async Task<IEnumerable<T>?> GetEntitiesMatchingPatternAsync(IEnumerable<Expression<Func<T, bool>>> patterns,
         DateTime from,
         DateTime to)
     {
-        if (patterns is null || !patterns.Any())
+        var expressions = patterns as Expression<Func<T, bool>>[] ?? patterns.ToArray();
+        if (patterns is null || expressions.Length is 0)
             throw new ArgumentException("Patterns enumerable cannot be null or empty.", nameof(patterns));
         if (from >= to)
             throw new ArgumentException("The start date must be before the end date.", nameof(from));
 
         try
         {
-            var query = _context.Set<T>().TemporalFromTo(from, to);
-            // Note: EF Core may not directly support combining multiple patterns asynchronously; consider evaluating patterns sequentially or adjusting the logic as needed.
-            // Example placeholder for handling patterns and fetching matching entities.
+            var query = _context.Set<T>().TemporalFromTo(from, to).AsQueryable();
+
+            query = expressions.Aggregate(query, (current, pattern) => current.Where(pattern));
+
+            return await query.ToListAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -169,7 +170,5 @@ public class TemporalQueryService<T> where T : class // Assuming T is a class
 #pragma warning restore CA1848
             throw; // Re-throwing to maintain method contract and error visibility.
         }
-
-        return Task.FromResult<IEnumerable<T>?>(null);
     }
 }
