@@ -173,9 +173,10 @@ public class Application
             var changes = await _temporalQueryService.CompareEntityVersionsAsync(
                  productId, firstDate, secondDate);
 
-            foreach (var change in changes)
-                _logger.LogInformation(ZString.Format("Property: {0}, Old Value: {1}, New Value: {2}",
-                    change.PropertyName, change.OriginalValue, change.CurrentValue));
+            if (changes != null)
+                foreach (var change in changes)
+                    _logger.LogInformation(ZString.Format("Property: {0}, Old Value: {1}, New Value: {2}",
+                        change.PropertyName, change.OriginalValue, change.CurrentValue));
         }
         catch (Exception ex)
         {

@@ -9,7 +9,7 @@ namespace DropBear.Codex.TemporalHistory.ConsoleApp.Data;
 public class AppDbContext : DbContext
 {
     private readonly AuditContext _auditContext;
-    private AuditService _auditService;
+    private AuditService? _auditService;
 
     public AppDbContext(DbContextOptions<AppDbContext> options, AuditContext auditContext)
         : base(options)
