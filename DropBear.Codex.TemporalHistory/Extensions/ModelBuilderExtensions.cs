@@ -8,7 +8,7 @@ namespace DropBear.Codex.TemporalHistory.Extensions;
 
 /// <summary>
 ///     Provides extension methods for <see cref="ModelBuilder" /> for custom configurations, including temporal table
-///     setup and audit log inclusion.
+///     setup.
 /// </summary>
 public static class ModelBuilderExtensions
 {
@@ -48,23 +48,10 @@ public static class ModelBuilderExtensions
         }
     }
 
-    /// <summary>
-    ///     Ensures the <see cref="AuditLog" /> entity is included in the model, allowing it to be part of the DbContext and
-    ///     used for audit logging.
-    /// </summary>
-    /// <param name="modelBuilder">The <see cref="ModelBuilder" /> to add the AuditLog entity to.</param>
-    /// <returns>The updated <see cref="ModelBuilder" /> for chaining further configuration calls.</returns>
-    public static ModelBuilder AddAuditLog(this ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<AuditLog>();
-        return modelBuilder;
-    }
-
     private static bool DatabaseProviderSupportsTemporalFeatures() =>
         // Implement custom logic for checking provider support
         // This could be based on the provider name, version, or other factors
         true;
-
 
     private static string GetHistoryTableName(MemberInfo entityType) =>
         // Implement custom logic for determining history table names
