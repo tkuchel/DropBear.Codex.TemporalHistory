@@ -9,7 +9,7 @@ namespace DropBear.Codex.TemporalHistory.Services;
 ///     Provides services for managing and querying temporal history of entities in a database context.
 /// </summary>
 /// <typeparam name="TContext">The database context type, derived from DbContext.</typeparam>
-public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext> where TContext : DbContext
+public class TemporalHistoryService<TContext> : ITemporalHistoryService where TContext : DbContext
 {
     private readonly IMemoryCache _cache;
     private readonly TContext _context;
@@ -85,8 +85,77 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
         }
     }
 
-    // Other methods (GetPreviousVersionAsync, GetNextVersionAsync, RevertToVersionAsync) remain the same,
-    // just ensure to include CancellationToken in their signatures and pass it to async calls.
+    /// <summary>
+    ///     Retrieves the previous version of an entity before a specified point in time.
+    /// </summary>
+    /// <typeparam name="T">The entity type.</typeparam>
+    /// <param name="entityId">The unique identifier of the entity.</param>
+    /// <param name="cancellationToken">A token for canceling the operation.</param>
+    /// <returns>A task representing the asynchronous operation, containing the previous version of the entity.</returns>
+    public async Task<T?> GetPreviousVersionAsync<T>(Guid entityId, CancellationToken cancellationToken = default)
+        where T : class
+    {
+        var currentEntity = await _context.Set<T>().FindAsync(new object[] { entityId }, cancellationToken)
+            .ConfigureAwait(false);
+        if (currentEntity is null) return null;
+
+        var validFromProperty = _context.Entry(currentEntity).Property<DateTime>("ValidFrom").CurrentValue;
+        var previousVersion = await _context.Set<T>()
+            .TemporalAsOf(validFromProperty.AddMilliseconds(-1))
+            .FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == entityId, cancellationToken).ConfigureAwait(false);
+
+        return previousVersion;
+    }
+
+    /// <summary>
+    ///     Retrieves the next version of an entity after a specified point in time.
+    /// </summary>
+    /// <typeparam name="T">The entity type.</typeparam>
+    /// <param name="entityId">The unique identifier of the entity.</param>
+    /// <param name="cancellationToken">A token for canceling the operation.</param>
+    /// <returns>A task representing the asynchronous operation, containing the next version of the entity.</returns>
+    public async Task<T?> GetNextVersionAsync<T>(Guid entityId, CancellationToken cancellationToken = default)
+        where T : class
+    {
+        var currentEntity = await _context.Set<T>().FindAsync(new object[] { entityId }, cancellationToken)
+            .ConfigureAwait(false);
+        if (currentEntity is null) return null;
+
+        var validToProperty = _context.Entry(currentEntity).Property<DateTime>("ValidTo").CurrentValue;
+        var nextVersion = await _context.Set<T>()
+            .TemporalFromTo(validToProperty, DateTime.UtcNow)
+            .FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == entityId, cancellationToken).ConfigureAwait(false);
+
+        return nextVersion;
+    }
+
+    /// <summary>
+    ///     Reverts an entity to its state at a specific point in time and logs this reversion as a new version in the history.
+    /// </summary>
+    /// <typeparam name="T">The entity type.</typeparam>
+    /// <param name="entityId">The unique identifier of the entity to revert.</param>
+    /// <param name="to">The point in time to revert to.</param>
+    /// <param name="cancellationToken">A token for canceling the operation.</param>
+    /// <returns>A task representing the asynchronous operation, indicating whether the reversion was successful.</returns>
+    public async Task<bool> RevertToVersionAsync<T>(Guid entityId, DateTime to,
+        CancellationToken cancellationToken = default) where T : class
+    {
+        var targetVersion = await _context.Set<T>()
+            .TemporalAsOf(to)
+            .FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == entityId, cancellationToken).ConfigureAwait(false);
+
+        if (targetVersion is null) return false;
+
+        var currentEntity = await _context.Set<T>().FindAsync(new object[] { entityId }, cancellationToken)
+            .ConfigureAwait(false);
+        if (currentEntity is null) return false;
+
+        _context.Entry(currentEntity).CurrentValues.SetValues(targetVersion);
+        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return true;
+    }
+
 
     /// <summary>
     ///     Abstracts caching logic to get or set cache entries.
