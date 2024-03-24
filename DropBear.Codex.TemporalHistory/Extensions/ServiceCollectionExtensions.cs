@@ -9,6 +9,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddTemporalHistory(this IServiceCollection services)
     {
+        services.AddMemoryCache();
         services.AddScoped(typeof(ITemporalHistoryService<>), typeof(TemporalHistoryService<>));
         services.AddAppLogger();
 

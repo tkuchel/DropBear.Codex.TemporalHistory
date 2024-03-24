@@ -29,15 +29,6 @@ public interface ITemporalHistoryService<TContext> where TContext : class
         where T : class;
 
     /// <summary>
-    ///     Rolls back the state of entities to a specific point in time, applying the historical state as the current state.
-    /// </summary>
-    /// <typeparam name="T">The entity type to rollback.</typeparam>
-    /// <param name="to">The point in time to rollback the entity states to.</param>
-    /// <param name="cancellationToken">A token for canceling the operation.</param>
-    /// <returns>A task that represents the asynchronous operation, indicating success or failure.</returns>
-    Task<Result> RollbackAsync<T>(DateTime to, CancellationToken cancellationToken = default) where T : class;
-
-    /// <summary>
     ///     Retrieves the previous version of an entity before a specified point in time.
     /// </summary>
     /// <typeparam name="T">The entity type.</typeparam>

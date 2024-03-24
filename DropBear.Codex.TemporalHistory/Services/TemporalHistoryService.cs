@@ -49,8 +49,7 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
             var getResult = await GetOrSetCacheAsync(
                 cacheKey,
                 () => FetchHistoryFromDatabase<T>(from, to, cancellationToken),
-                TimeSpan.FromMinutes(5),
-                cancellationToken
+                TimeSpan.FromMinutes(5)
             ).ConfigureAwait(false);
 
             return getResult is not null
@@ -80,7 +79,7 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
         {
             var cacheKey = $"GetAllHistoryAsync_{typeof(T).Name}";
             var getResult = await GetOrSetCacheAsync(cacheKey, () => FetchAllHistoryFromDatabase<T>(cancellationToken),
-                TimeSpan.FromMinutes(10), cancellationToken).ConfigureAwait(false);
+                TimeSpan.FromMinutes(10)).ConfigureAwait(false);
 
             return getResult is not null
                 ? Result<IEnumerable<TemporalRecord<T>>>.Success(getResult)
@@ -92,41 +91,6 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
                 ZString.Format("An error occurred while fetching all history for entity type {EntityType}.",
                     typeof(T).Name));
             return Result<IEnumerable<TemporalRecord<T>>>.Failure("An error occurred while fetching history.");
-        }
-    }
-
-    /// <summary>
-    ///     Rolls back the state of entities to a specific point in time, applying the historical state as the current state.
-    /// </summary>
-    /// <typeparam name="T">The entity type to rollback.</typeparam>
-    /// <param name="to">The point in time to rollback the entity states to.</param>
-    /// <param name="cancellationToken">A token for canceling the operation.</param>
-    /// <returns>A task that represents the asynchronous operation, indicating success or failure.</returns>
-    public async Task<Result> RollbackAsync<T>(DateTime to, CancellationToken cancellationToken = default)
-        where T : class
-    {
-        try
-        {
-            var transaction = await _context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-            await using (transaction.ConfigureAwait(false))
-            {
-                var entities = await _context.Set<T>().TemporalAsOf(to).ToListAsync(cancellationToken)
-                    .ConfigureAwait(false);
-                if (entities.Count is 0) return Result.Failure("No entities found to rollback.");
-
-                foreach (var entity in entities) _context.Entry(entity).State = EntityState.Modified; // Mark for update
-
-                await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-            return Result.Success();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                ZString.Format("An error occurred while rolling back entity type {EntityType}.", typeof(T).Name));
-            return Result.Failure("An error occurred while rolling back entities.");
         }
     }
 
@@ -249,19 +213,18 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
     /// <param name="cacheKey">The key used for caching.</param>
     /// <param name="fetchFunction">The function to fetch data if it's not in the cache.</param>
     /// <param name="expiration">The expiration timespan for the cache entry.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Cached or freshly fetched data.</returns>
     private async Task<IEnumerable<TemporalRecord<T>>?> GetOrSetCacheAsync<T>(string cacheKey,
-        Func<Task<IEnumerable<TemporalRecord<T>>>> fetchFunction, TimeSpan expiration,
-        CancellationToken cancellationToken = default) where T : class
+        Func<Task<IEnumerable<TemporalRecord<T>>>> fetchFunction, TimeSpan expiration) where T : class
     {
         try
         {
             if (_cache.TryGetValue(cacheKey, out IEnumerable<TemporalRecord<T>>? cachedRecords)) return cachedRecords;
             cachedRecords = await fetchFunction().ConfigureAwait(false);
-            _cache.Set(cacheKey, cachedRecords, new MemoryCacheEntryOptions().SetSlidingExpiration(expiration));
+            var orSetCacheAsync = cachedRecords.ToList();
+            _cache.Set(cacheKey, orSetCacheAsync, new MemoryCacheEntryOptions().SetSlidingExpiration(expiration));
 
-            return cachedRecords;
+            return orSetCacheAsync;
         }
         catch (Exception e)
         {
@@ -277,17 +240,31 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>All historical records for the entity type.</returns>
     private async Task<IEnumerable<TemporalRecord<T>>> FetchAllHistoryFromDatabase<T>(
-        CancellationToken cancellationToken = default) where T : class =>
-        await _context.Set<T>()
-            .TemporalAll()
-            .OrderBy(e => EF.Property<DateTime>(e, "ValidFrom"))
-            .Select(e => new TemporalRecord<T>
-            {
-                Entity = e,
-                ValidFrom = EF.Property<DateTime>(e, "ValidFrom"),
-                ValidTo = EF.Property<DateTime>(e, "ValidTo")
-            })
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) where T : class
+    {
+        try
+        {
+            var getResult = await _context.Set<T>()
+                .TemporalAll()
+                .OrderBy(e => EF.Property<DateTime>(e, "ValidFrom"))
+                .Select(e => new TemporalRecord<T>
+                {
+                    Entity = e,
+                    ValidFrom = EF.Property<DateTime>(e, "ValidFrom"),
+                    ValidTo = EF.Property<DateTime>(e, "ValidTo")
+                })
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+            return getResult;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                ZString.Format("An error occurred while fetching all history for entity type {EntityType}.",
+                    typeof(T).Name));
+            return Array.Empty<TemporalRecord<T>>();
+        }
+    }
 
 
     /// <summary>
@@ -299,15 +276,29 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
     /// <param name="cancellationToken">A token for canceling the operation.</param>
     /// <returns>A task representing the asynchronous operation, containing temporal records within the specified time range.</returns>
     private async Task<IEnumerable<TemporalRecord<T>>> FetchHistoryFromDatabase<T>(DateTime from, DateTime to,
-        CancellationToken cancellationToken = default) where T : class =>
-        await _context.Set<T>()
-            .TemporalBetween(from, to)
-            .OrderBy(e => EF.Property<DateTime>(e, "ValidFrom"))
-            .Select(e => new TemporalRecord<T>
-            {
-                Entity = e,
-                ValidFrom = EF.Property<DateTime>(e, "ValidFrom"),
-                ValidTo = EF.Property<DateTime>(e, "ValidTo")
-            })
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) where T : class
+    {
+        try
+        {
+            var getResult = await _context.Set<T>()
+                .TemporalBetween(from, to)
+                .OrderBy(e => EF.Property<DateTime>(e, "ValidFrom"))
+                .Select(e => new TemporalRecord<T>
+                {
+                    Entity = e,
+                    ValidFrom = EF.Property<DateTime>(e, "ValidFrom"),
+                    ValidTo = EF.Property<DateTime>(e, "ValidTo")
+                })
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+            return getResult;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                ZString.Format("An error occurred while fetching history for entity type {EntityType}.",
+                    typeof(T).Name));
+            return Array.Empty<TemporalRecord<T>>();
+        }
+    }
 }
