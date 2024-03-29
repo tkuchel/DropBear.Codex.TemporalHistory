@@ -22,8 +22,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="DropBear.Codex.AppLogger" Version="2024.3.4" />
-        <PackageReference Include="DropBear.Codex.Core" Version="2024.3.12" />
+        <PackageReference Include="DropBear.Codex.AppLogger" Version="2024.3.6" />
+        <PackageReference Include="DropBear.Codex.Core" Version="2024.3.13" />
         <PackageReference Include="Meziantou.DotNet.CodingStandard" Version="1.0.119">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -31,7 +31,7 @@
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.3" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Abstractions" Version="8.0.3" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.3" />
-        <PackageReference Include="ZString" Version="2.5.1" />
+        <PackageReference Include="ZString" Version="2.6.0" />
     </ItemGroup>
 
 </Project>
