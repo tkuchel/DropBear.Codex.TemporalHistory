@@ -52,7 +52,7 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
         }
         catch (Exception ex)
         {
-            return Result<IEnumerable<TemporalRecord<T>>>.Failure("An error occurred while fetching history.");
+            return Result<IEnumerable<TemporalRecord<T>>>.Failure(ex);
         }
     }
 
@@ -76,9 +76,9 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
                 ? Result<IEnumerable<TemporalRecord<T>>>.Success(getResult)
                 : Result<IEnumerable<TemporalRecord<T>>>.Failure("No history found");
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            return Result<IEnumerable<TemporalRecord<T>>>.Failure("An error occurred while fetching history.");
+            return Result<IEnumerable<TemporalRecord<T>>>.Failure(ex);
         }
     }
 
@@ -112,7 +112,7 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
         }
         catch (Exception ex)
         {
-            return Result<T>.Failure("An error occurred while fetching previous version.");
+            return Result<T>.Failure(ex);
         }
     }
 
@@ -143,9 +143,9 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
                 ? Result<T>.Success(nextVersion)
                 : Result<T>.Failure("No next version found.");
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            return Result<T>.Failure("An error occurred while fetching next version.");
+            return Result<T>.Failure(ex);
         }
     }
 
@@ -178,9 +178,9 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
 
             return Result.Success();
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            return Result.Failure("An error occurred while reverting entity.");
+            return Result.Failure(ex.Message,ex);
         }
     }
 
@@ -205,7 +205,7 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
 
             return orSetCacheAsync;
         }
-        catch (Exception e)
+        catch (Exception)
         {
             return null;
         }
@@ -235,7 +235,7 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
 
             return getResult;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return Array.Empty<TemporalRecord<T>>();
         }
@@ -268,7 +268,7 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
 
             return getResult;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return Array.Empty<TemporalRecord<T>>();
         }
