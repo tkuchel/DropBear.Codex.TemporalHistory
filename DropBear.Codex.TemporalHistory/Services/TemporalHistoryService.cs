@@ -1,6 +1,4 @@
-using Cysharp.Text;
-using DropBear.Codex.AppLogger.Interfaces;
-using DropBear.Codex.Core.ReturnTypes;
+using DropBear.Codex.Core;
 using DropBear.Codex.TemporalHistory.Interfaces;
 using DropBear.Codex.TemporalHistory.Models;
 using Microsoft.EntityFrameworkCore;
@@ -16,20 +14,16 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
 {
     private readonly IMemoryCache _cache;
     private readonly TContext _context;
-    private readonly IAppLogger<TemporalHistoryService<TContext>> _logger;
 
     /// <summary>
     ///     Initializes a new instance of the TemporalHistoryService with the specified DbContext and MemoryCache.
     /// </summary>
     /// <param name="context">The DbContext to use for data operations.</param>
     /// <param name="cache">The MemoryCache for caching query results.</param>
-    /// <param name="logger">An App Logger implementation</param>
-    public TemporalHistoryService(TContext context, IMemoryCache cache,
-        IAppLogger<TemporalHistoryService<TContext>> logger)
+    public TemporalHistoryService(TContext context, IMemoryCache cache)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
@@ -58,9 +52,6 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
-                ZString.Format("An error occurred while fetching history for entity type {EntityType}.",
-                    typeof(T).Name));
             return Result<IEnumerable<TemporalRecord<T>>>.Failure("An error occurred while fetching history.");
         }
     }
@@ -87,9 +78,6 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
         }
         catch (Exception e)
         {
-            _logger.LogError(e,
-                ZString.Format("An error occurred while fetching all history for entity type {EntityType}.",
-                    typeof(T).Name));
             return Result<IEnumerable<TemporalRecord<T>>>.Failure("An error occurred while fetching history.");
         }
     }
@@ -124,9 +112,6 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
-                ZString.Format("An error occurred while fetching previous version for entity with ID {EntityId}.",
-                    entityId));
             return Result<T>.Failure("An error occurred while fetching previous version.");
         }
     }
@@ -160,9 +145,6 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
         }
         catch (Exception e)
         {
-            _logger.LogError(e,
-                ZString.Format("An error occurred while fetching next version for entity with ID {EntityId}.",
-                    entityId));
             return Result<T>.Failure("An error occurred while fetching next version.");
         }
     }
@@ -198,9 +180,6 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
         }
         catch (Exception e)
         {
-            _logger.LogError(e,
-                ZString.Format("An error occurred while reverting entity with ID {EntityId} to version at {To}.",
-                    entityId, to));
             return Result.Failure("An error occurred while reverting entity.");
         }
     }
@@ -228,7 +207,6 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "An error occurred while fetching or setting cache.");
             return null;
         }
     }
@@ -259,9 +237,6 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
-                ZString.Format("An error occurred while fetching all history for entity type {EntityType}.",
-                    typeof(T).Name));
             return Array.Empty<TemporalRecord<T>>();
         }
     }
@@ -295,9 +270,6 @@ public class TemporalHistoryService<TContext> : ITemporalHistoryService<TContext
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
-                ZString.Format("An error occurred while fetching history for entity type {EntityType}.",
-                    typeof(T).Name));
             return Array.Empty<TemporalRecord<T>>();
         }
     }

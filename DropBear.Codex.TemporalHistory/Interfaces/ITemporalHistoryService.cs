@@ -1,4 +1,4 @@
-using DropBear.Codex.Core.ReturnTypes;
+using DropBear.Codex.Core;
 using DropBear.Codex.TemporalHistory.Models;
 
 namespace DropBear.Codex.TemporalHistory.Interfaces;
@@ -35,7 +35,8 @@ public interface ITemporalHistoryService<TContext> where TContext : class
     /// <param name="entityId">The unique identifier of the entity.</param>
     /// <param name="cancellationToken">A token for canceling the operation.</param>
     /// <returns>A task representing the asynchronous operation, containing the previous version of the entity.</returns>
-    Task<Result<T>> GetPreviousVersionAsync<T>(Guid entityId, CancellationToken cancellationToken = default) where T : class;
+    Task<Result<T>> GetPreviousVersionAsync<T>(Guid entityId, CancellationToken cancellationToken = default)
+        where T : class;
 
     /// <summary>
     ///     Retrieves the next version of an entity after a specified point in time.
@@ -44,7 +45,8 @@ public interface ITemporalHistoryService<TContext> where TContext : class
     /// <param name="entityId">The unique identifier of the entity.</param>
     /// <param name="cancellationToken">A token for canceling the operation.</param>
     /// <returns>A task representing the asynchronous operation, containing the next version of the entity.</returns>
-    Task<Result<T>> GetNextVersionAsync<T>(Guid entityId, CancellationToken cancellationToken = default) where T : class;
+    Task<Result<T>> GetNextVersionAsync<T>(Guid entityId, CancellationToken cancellationToken = default)
+        where T : class;
 
     /// <summary>
     ///     Reverts an entity to its state at a specific point in time and logs this reversion as a new version in the history.
