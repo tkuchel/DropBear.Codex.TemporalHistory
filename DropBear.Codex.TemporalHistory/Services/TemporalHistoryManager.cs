@@ -81,7 +81,7 @@ public class TemporalHistoryManager<TContext> : ITemporalHistoryManager<TContext
         if (entityAtFromTime is null || entityAtToTime is null)
             return new List<PropertyChange>(); // Return an empty list or handle this case as needed
 
-        return CompareEntities(entityAtFromTime, entityAtToTime);
+        return TemporalHistoryManager<TContext>.CompareEntities(entityAtFromTime, entityAtToTime);
     }
 
     public async Task<IEnumerable<TemporalRecord<T>>> GetHistoryForPeriod<T>(DateTime startDate, DateTime endDate,
@@ -97,7 +97,7 @@ public class TemporalHistoryManager<TContext> : ITemporalHistoryManager<TContext
             })
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-    private IEnumerable<PropertyChange> CompareEntities<T>(T oldEntity, T newEntity) where T : class
+    private static List<PropertyChange> CompareEntities<T>(T oldEntity, T newEntity) where T : class
     {
         // Assuming you have a way to reflect over the properties of T to find differences
         var properties = typeof(T).GetProperties();

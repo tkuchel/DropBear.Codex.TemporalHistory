@@ -7,6 +7,9 @@ public class PropertyChange
 {
     public PropertyChange()
     {
+        PropertyName = string.Empty;
+        OriginalValue = null;
+        CurrentValue = null;
     }
 
     /// <summary>
@@ -15,7 +18,7 @@ public class PropertyChange
     /// <param name="propertyName">The name of the property that changed.</param>
     /// <param name="originalValue">The original value of the property.</param>
     /// <param name="currentValue">The new value of the property.</param>
-    public PropertyChange(string propertyName, object originalValue, object currentValue)
+    public PropertyChange(string propertyName, object? originalValue, object? currentValue)
     {
         PropertyName = propertyName;
         OriginalValue = originalValue;
@@ -30,10 +33,10 @@ public class PropertyChange
     /// <summary>
     ///     Gets or sets the original value of the property before the change.
     /// </summary>
-    public object OriginalValue { get; set; }
+    public object? OriginalValue { get; set; }
 
     /// <summary>
     ///     Gets or sets the current value of the property after the change.
     /// </summary>
-    public object CurrentValue { get; set; }
+    public object? CurrentValue { get; set; }
 }

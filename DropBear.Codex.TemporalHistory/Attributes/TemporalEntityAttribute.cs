@@ -6,6 +6,6 @@ namespace DropBear.Codex.TemporalHistory.Attributes;
 ///     for historical changes over time.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public class TemporalEntityAttribute : Attribute
+public sealed class TemporalEntityAttribute : Attribute
 {
 }

@@ -9,7 +9,7 @@ public class TemporalRecord<T> where T : class
     /// <summary>
     ///     Gets or sets the entity associated with this temporal record.
     /// </summary>
-    public T Entity { get; set; }
+    public T Entity { get; set; } = default!;
 
     /// <summary>
     ///     Gets or sets the starting timestamp of the record's validity.

@@ -9,7 +9,7 @@ public class PaginatedResult<T>
     /// <summary>
     ///     Gets or sets the collection of items in the current page.
     /// </summary>
-    public IEnumerable<T> Items { get; set; }
+    public IEnumerable<T> Items { get; set; }   = Enumerable.Empty<T>();
 
     /// <summary>
     ///     Gets or sets the total number of records across all pages.
