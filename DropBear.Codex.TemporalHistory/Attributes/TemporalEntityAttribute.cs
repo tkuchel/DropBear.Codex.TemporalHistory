@@ -1,8 +1,11 @@
 namespace DropBear.Codex.TemporalHistory.Attributes;
 
 /// <summary>
-///     Indicates that an entity is a temporal entity and should be treated accordingly in the database context
-///     configuration.
+///     Attribute to designate a class as a temporal entity.
+///     This attribute is used to mark classes that should be tracked
+///     for historical changes over time.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class TemporalEntityAttribute : Attribute;
+public class TemporalEntityAttribute : Attribute
+{
+}
