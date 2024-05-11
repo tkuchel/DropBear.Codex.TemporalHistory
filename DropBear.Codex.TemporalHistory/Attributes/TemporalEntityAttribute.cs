@@ -15,7 +15,7 @@ public sealed class TemporalEntityAttribute : Attribute
     /// Gets or sets the name of the history table for the temporal entity.
     /// If not set, a default naming convention will be used.
     /// </summary>
-    public string? HistoryTableName { get; set; }
+    public string? HistoryTableName { get; }
 
     /// <summary>
     /// Initializes a new instance of the TemporalEntityAttribute class.
