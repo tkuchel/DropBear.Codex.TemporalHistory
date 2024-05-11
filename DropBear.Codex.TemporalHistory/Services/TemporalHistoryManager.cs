@@ -5,110 +5,108 @@ using Microsoft.EntityFrameworkCore;
 namespace DropBear.Codex.TemporalHistory.Services;
 
 /// <summary>
-///     Service to manage and query temporal history for entities using Entity Framework.
+///     Service to manage and query temporal history for entities using Entity Framework Core.
 /// </summary>
 /// <typeparam name="TContext">The EF database context type this service operates on.</typeparam>
 public class TemporalHistoryManager<TContext> : ITemporalHistoryManager<TContext> where TContext : DbContext
 {
-    private readonly TContext _context;
+    private readonly IDbContextFactory<TContext> _contextFactory;
 
-    public TemporalHistoryManager(TContext context) => _context = context;
+    public TemporalHistoryManager(IDbContextFactory<TContext> contextFactory) => _contextFactory = contextFactory;
 
+    /// <summary>
+    ///     Retrieves historical records for a given entity type within the specified date range.
+    /// </summary>
+    /// <typeparam name="T">The entity type.</typeparam>
+    /// <param name="from">The start date of the period.</param>
+    /// <param name="to">The end date of the period.</param>
+    /// <param name="cancellationToken">A token for cancelling the operation.</param>
+    /// <returns>A list of temporal records for the specified entity.</returns>
     public async Task<IEnumerable<TemporalRecord<T>>> GetHistoryAsync<T>(DateTime from, DateTime to,
         CancellationToken cancellationToken = default) where T : class =>
-        await _context.Set<T>()
-            .TemporalAll()
-            .Where(e => EF.Property<DateTime>(e, "PeriodStart") >= from && EF.Property<DateTime>(e, "PeriodEnd") <= to)
-            .Select(e => new TemporalRecord<T>
-            {
-                Entity = e,
-                ValidFrom = EF.Property<DateTime>(e, "PeriodStart"),
-                ValidTo = EF.Property<DateTime>(e, "PeriodEnd")
-            })
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        await WithContextAsync(async context =>
+        {
+            return await context.Set<T>()
+                .TemporalAll()
+                .Where(e => EF.Property<DateTime>(e, "PeriodStart") >= from &&
+                            EF.Property<DateTime>(e, "PeriodEnd") <= to)
+                .Select(e => new TemporalRecord<T>
+                {
+                    Entity = e,
+                    ValidFrom = EF.Property<DateTime>(e, "PeriodStart"),
+                    ValidTo = EF.Property<DateTime>(e, "PeriodEnd")
+                })
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
+        }).ConfigureAwait(false);
 
+    /// <summary>
+    ///     Retrieves a snapshot of an entity at a specific point in time.
+    /// </summary>
+    /// <typeparam name="T">The entity type.</typeparam>
+    /// <param name="pointInTime">The specific point in time for the snapshot.</param>
+    /// <param name="key">The key value of the entity.</param>
+    /// <param name="cancellationToken">A token for cancelling the operation.</param>
+    /// <returns>A snapshot of the entity if found; otherwise, null.</returns>
     public async Task<T?> GetEntitySnapshotAt<T>(DateTime pointInTime, object key,
         CancellationToken cancellationToken = default) where T : class =>
-        await _context.Set<T>()
-            .TemporalAsOf(pointInTime)
-            .FirstOrDefaultAsync(e => EF.Property<object>(e, "Id") == key, cancellationToken).ConfigureAwait(false);
+        await WithContextAsync(async context =>
+        {
+            return await context.Set<T>()
+                .TemporalAsOf(pointInTime)
+                .FirstOrDefaultAsync(e => EF.Property<object>(e, "Id") == key, cancellationToken).ConfigureAwait(false);
+        }).ConfigureAwait(false);
 
-    public async Task<T?> GetEntitySnapshotAt<T>(DateTime snapshotTime, CancellationToken cancellationToken = default)
-        where T : class =>
-        await _context.Set<T>()
-            .TemporalAsOf(snapshotTime)
-            .SingleOrDefaultAsync(cancellationToken).ConfigureAwait(false);
-
-
+    /// <summary>
+    ///     Retrieves the latest changes for a given entity type, limited by a maximum number of results.
+    /// </summary>
+    /// <typeparam name="T">The entity type.</typeparam>
+    /// <param name="maxResults">The maximum number of records to retrieve.</param>
+    /// <param name="cancellationToken">A token for cancelling the operation.</param>
+    /// <returns>A list of the latest temporal records.</returns>
     public async Task<IEnumerable<TemporalRecord<T>>> GetLatestChanges<T>(int maxResults,
         CancellationToken cancellationToken = default) where T : class =>
-        await _context.Set<T>()
-            .TemporalAll()
-            .OrderByDescending(e => EF.Property<DateTime>(e, "PeriodEnd"))
-            .Take(maxResults)
-            .Select(e => new TemporalRecord<T>
-            {
-                Entity = e,
-                ValidFrom = EF.Property<DateTime>(e, "PeriodStart"),
-                ValidTo = EF.Property<DateTime>(e, "PeriodEnd")
-            })
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        await WithContextAsync(async context =>
+        {
+            return await context.Set<T>()
+                .TemporalAll()
+                .OrderByDescending(e => EF.Property<DateTime>(e, "PeriodEnd"))
+                .Take(maxResults)
+                .Select(e => new TemporalRecord<T>
+                {
+                    Entity = e,
+                    ValidFrom = EF.Property<DateTime>(e, "PeriodStart"),
+                    ValidTo = EF.Property<DateTime>(e, "PeriodEnd")
+                })
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
+        }).ConfigureAwait(false);
 
-    public async Task<IEnumerable<TemporalRecord<T>>> GetChangesByUser<T>(string userId, DateTime from, DateTime to,
-        CancellationToken cancellationToken = default) where T : class =>
-        await _context.Set<T>()
-            .TemporalAll()
-            .Where(e => EF.Property<DateTime>(e, "PeriodStart") >= from &&
-                        EF.Property<DateTime>(e, "PeriodEnd") <= to && EF.Property<string>(e, "ModifiedBy") == userId)
-            .Select(e => new TemporalRecord<T>
-            {
-                Entity = e,
-                ValidFrom = EF.Property<DateTime>(e, "PeriodStart"),
-                ValidTo = EF.Property<DateTime>(e, "PeriodEnd")
-            })
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
+    /// <summary>
+    ///     Creates a DbContext instance using the context factory.
+    /// </summary>
+    /// <returns>An instance of TContext.</returns>
+    private async Task<TContext> CreateDbContextAsync() =>
+        await _contextFactory.CreateDbContextAsync().ConfigureAwait(false);
 
-    public async Task<IEnumerable<PropertyChange>> CompareEntityStates<T>(DateTime fromTime, DateTime toTime,
-        CancellationToken cancellationToken = default) where T : class
+    /// <summary>
+    ///     Executes a function that requires a DbContext within a using block ensuring proper disposal.
+    /// </summary>
+    /// <typeparam name="TResult">The result type of the function.</typeparam>
+    /// <param name="operation">The function to execute that requires a DbContext.</param>
+    /// <returns>The result of the function.</returns>
+    private async Task<TResult> WithContextAsync<TResult>(Func<TContext, Task<TResult>> operation)
     {
-        var entityAtFromTime = await _context.Set<T>()
-            .TemporalAsOf(fromTime)
-            .SingleOrDefaultAsync(cancellationToken).ConfigureAwait(false);
-        var entityAtToTime = await _context.Set<T>()
-            .TemporalAsOf(toTime)
-            .SingleOrDefaultAsync(cancellationToken).ConfigureAwait(false);
-
-        if (entityAtFromTime is null || entityAtToTime is null)
-            return new List<PropertyChange>(); // Return an empty list or handle this case as needed
-
-        return TemporalHistoryManager<TContext>.CompareEntities(entityAtFromTime, entityAtToTime);
-    }
-
-    public async Task<IEnumerable<TemporalRecord<T>>> GetHistoryForPeriod<T>(DateTime startDate, DateTime endDate,
-        CancellationToken cancellationToken = default) where T : class =>
-        await _context.Set<T>()
-            .TemporalFromTo(startDate, endDate)
-            .OrderBy(e => EF.Property<DateTime>(e, "PeriodStart"))
-            .Select(e => new TemporalRecord<T>
+        try
+        {
+            var context = await CreateDbContextAsync().ConfigureAwait(false);
+            await using (context.ConfigureAwait(false))
             {
-                Entity = e,
-                ValidFrom = EF.Property<DateTime>(e, "PeriodStart"),
-                ValidTo = EF.Property<DateTime>(e, "PeriodEnd")
-            })
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
-
-    private static List<PropertyChange> CompareEntities<T>(T oldEntity, T newEntity) where T : class
-    {
-        // Assuming you have a way to reflect over the properties of T to find differences
-        var properties = typeof(T).GetProperties();
-
-        return (from property in properties
-            let oldValue = property.GetValue(oldEntity)
-            let newValue = property.GetValue(newEntity)
-            where !Equals(oldValue, newValue)
-            select new PropertyChange
-            {
-                PropertyName = property.Name, OriginalValue = oldValue, CurrentValue = newValue
-            }).ToList();
+                return await operation(context).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Ideally log the exception or handle it as needed
+            throw new InvalidOperationException("An error occurred executing database operation", ex);
+        }
     }
 }
