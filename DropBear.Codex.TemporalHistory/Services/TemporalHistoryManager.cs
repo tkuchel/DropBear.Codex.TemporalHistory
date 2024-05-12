@@ -80,12 +80,6 @@ public class TemporalHistoryManager<TContext> : ITemporalHistoryManager<TContext
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
-    /// <summary>
-    ///     Creates a DbContext instance using the context factory.
-    /// </summary>
-    /// <returns>An instance of TContext.</returns>
-    private async Task<TContext?> CreateDbContextAsync() =>
-        await _contextFactory.CreateDbContextAsync().ConfigureAwait(false);
 
     /// <summary>
     ///     Executes a function that requires a DbContext within a using block ensuring proper disposal.
@@ -116,6 +110,6 @@ public class TemporalHistoryManager<TContext> : ITemporalHistoryManager<TContext
         var entityStates = dataState.Select(e => new { Entity = e.Entity.GetType().Name, State = e.State });
 
         // Log the exception with structured data
-        Console.WriteLine($"An error occurred executing database operation. Context state: {entityStates}");
+        Console.WriteLine($"An error occurred executing database operation. Context state: {entityStates} {ex.Message}");
     }
 }
