@@ -34,7 +34,7 @@ public class TemporalHistoryManager<TContext> : ITemporalHistoryManager<TContext
                 {
                     Entity = e,
                     ValidFrom = EF.Property<DateTime>(e, "PeriodStart"),
-                    ValidTo = EF.Property<DateTime>(e, "PeriodEnd")
+                    ValidTo = EF.Property<DateTime>(e, "PeriodEnd"),
                 })
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
@@ -75,7 +75,7 @@ public class TemporalHistoryManager<TContext> : ITemporalHistoryManager<TContext
                 {
                     Entity = e,
                     ValidFrom = EF.Property<DateTime>(e, "PeriodStart"),
-                    ValidTo = EF.Property<DateTime>(e, "PeriodEnd")
+                    ValidTo = EF.Property<DateTime>(e, "PeriodEnd"),
                 })
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
@@ -84,7 +84,7 @@ public class TemporalHistoryManager<TContext> : ITemporalHistoryManager<TContext
     ///     Creates a DbContext instance using the context factory.
     /// </summary>
     /// <returns>An instance of TContext.</returns>
-    private async Task<TContext> CreateDbContextAsync() =>
+    private async Task<TContext?> CreateDbContextAsync() =>
         await _contextFactory.CreateDbContextAsync().ConfigureAwait(false);
 
     /// <summary>
@@ -95,18 +95,27 @@ public class TemporalHistoryManager<TContext> : ITemporalHistoryManager<TContext
     /// <returns>The result of the function.</returns>
     private async Task<TResult> WithContextAsync<TResult>(Func<TContext, Task<TResult>> operation)
     {
+        TContext? context = null;
         try
         {
-            var context = await CreateDbContextAsync().ConfigureAwait(false);
-            await using (context.ConfigureAwait(false))
-            {
-                return await operation(context).ConfigureAwait(false);
-            }
+            context = await _contextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            return await operation(context).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            // Ideally log the exception or handle it as needed
-            throw new InvalidOperationException("An error occurred executing database operation", ex);
+            if (context is not null)
+                TemporalHistoryManager<TContext>.LogError(ex, context);
+            throw; // Re-throw to preserve stack trace
         }
+    }
+
+    private static void LogError(Exception ex, TContext? context)
+    {
+        // Here you could include specific details about the context, such as the current state of the data model
+        var dataState = context?.ChangeTracker?.Entries() ?? [];
+        var entityStates = dataState.Select(e => new { Entity = e.Entity.GetType().Name, State = e.State });
+
+        // Log the exception with structured data
+        Console.WriteLine($"An error occurred executing database operation. Context state: {entityStates}");
     }
 }
